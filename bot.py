@@ -335,7 +335,8 @@ def _header(kind: str, events: list[dict]) -> str:
     return f"📅 {events[0]['start']:%a %-d %b} · {len(events)} meeting{'s' if len(events) != 1 else ''}\n{lines}{more}"
 
 
-async def _send(ctx: ContextTypes.DEFAULT_TYPE, user, kind: str, events: list[dict], density: int | None = None) -> bool:
+async def _send(ctx: ContextTypes.DEFAULT_TYPE, user, kind: str, events: list[dict], density: int | None = None) -> int | None:
+    """Compose + send one nudge. Returns the messages.id row (truthy) or None."""
     chat_id = user["chat_id"]
     register = pick_register(store.tone_weights(chat_id), avoid=store.last_register(chat_id))
     ev = events[0] if events else None
@@ -356,12 +357,12 @@ async def _send(ctx: ContextTypes.DEFAULT_TYPE, user, kind: str, events: list[di
             msg = await ctx.bot.send_message(chat_id=chat_id, text=full, reply_markup=_keyboard(kind, message_id))
             store.set_tg_message_id(message_id, msg.message_id)
             log.info("sent %s [%s] to %s for %s", kind, register, chat_id, ev["title"] if ev else "-")
-            return True
+            return message_id
         except Exception as e:
             log.warning("send failed (attempt %d): %s", attempt + 1, e)
             await asyncio.sleep(3 * (attempt + 1))
     log.error("gave up sending %s to %s", kind, chat_id)
-    return False
+    return None
 
 
 async def send_nudge(ctx: ContextTypes.DEFAULT_TYPE) -> None:
@@ -392,7 +393,7 @@ async def send_day_ahead(ctx: ContextTypes.DEFAULT_TYPE, user, force: bool = Fal
     return await _send(ctx, user, "day", evs, density=len(evs))
 
 
-async def send_eod(ctx: ContextTypes.DEFAULT_TYPE, user, force: bool = False) -> bool:
+async def send_eod(ctx: ContextTypes.DEFAULT_TYPE, user, force: bool = False, include_future: bool = False) -> bool:
     """End-of-day summary: every meeting with the mood tapped, the notes written, one reflection."""
     if not user["ics_url"]:
         return False
@@ -407,7 +408,7 @@ async def send_eod(ctx: ContextTypes.DEFAULT_TYPE, user, force: bool = False) ->
     except Exception as e:
         log.warning("eod fetch failed: %s", e)
         return False
-    evs = [e for e in evs if e["start"].date() == now.date() and e["start"] <= now]
+    evs = [e for e in evs if e["start"].date() == now.date() and (include_future or e["start"] <= now)]
     if not evs and not force:
         return False
     since = day_start.astimezone(ZoneInfo("UTC")).isoformat(timespec="seconds")
@@ -446,6 +447,91 @@ async def summary_cmd(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         await update.message.reply_text("No calendar yet. Send /start.")
         return
     await send_eod(ctx, u, force=True)
+
+
+# ------------------------------------------------------------ /play demo ----
+_playing: set[int] = set()
+
+
+async def _wait_for(check, timeout: float) -> bool:
+    """Poll `check()` once a second until it's true or the timeout passes."""
+    for _ in range(int(timeout)):
+        await asyncio.sleep(1)
+        if check():
+            await asyncio.sleep(2)  # let the footer edit land on screen before the next message
+            return True
+    return False
+
+
+async def play(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """Scripted demo for screen recording: a full day compressed into ~3 minutes.
+    Every message is the real pipeline; only the clock is compressed. Pauses for your taps."""
+    chat_id = update.effective_chat.id
+    if chat_id in _playing:
+        await update.message.reply_text("Already playing.")
+        return
+    u = store.ensure_user(chat_id)
+    if not u["name"]:
+        store.set_user(chat_id, name="Anand", sunsign=u["sunsign"] or "Leo", step="done")
+    _playing.add(chat_id)
+    try:
+        await _play(update, ctx)
+    finally:
+        _playing.discard(chat_id)
+
+
+async def _play(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    chat_id = update.effective_chat.id
+    subprocess.run([sys.executable, "demo/seed.py", "--fast"], check=True, capture_output=True)
+    store.set_user(chat_id, ics_url="demo/demo.ics", step="done")
+    u = store.get_user(chat_id)
+    tz = tz_of(u)
+    evs = await asyncio.to_thread(upcoming, "demo/demo.ics", 24, None, tz)
+    evs = [e for e in evs if e["start"].date() == datetime.now(tz).date()]
+    # the poller must not double-send these while the script runs
+    for ev in evs:
+        for kind in ("pre", "post"):
+            store.mark_sent(chat_id, f'{ev["uid"]}:{kind}:{ev["start"].isoformat()}')
+    standup, investor, priya = evs[0], evs[1], evs[2]
+    density = len(evs)
+
+    def tapped(mid):
+        return lambda: store.db().execute("SELECT 1 FROM feedback WHERE message_id=?", (mid,)).fetchone() is not None
+
+    def mood_or_note(mid, n_notes):
+        return lambda: (store.db().execute("SELECT 1 FROM mood WHERE message_id=?", (mid,)).fetchone() is not None
+                        and store.db().execute("SELECT COUNT(*) FROM journal WHERE chat_id=?", (chat_id,)).fetchone()[0] > n_notes)
+
+    def notes():
+        return store.db().execute("SELECT COUNT(*) FROM journal WHERE chat_id=?", (chat_id,)).fetchone()[0]
+
+    await update.message.reply_text(f"▶️ Calendar connected. Sample day, clock compressed: {density} meetings in three minutes.")
+    await asyncio.sleep(3)
+    await _send(ctx, u, "day", evs, density=density)                      # 08:30 reading
+    await asyncio.sleep(18)
+
+    mid = await _send(ctx, u, "pre", [standup], density=density)          # ⏰ standup
+    await _wait_for(tapped(mid), 20)
+    await asyncio.sleep(6)
+    mid = await _send(ctx, u, "post", [standup], density=density)         # ✅ standup → mood + note
+    await _wait_for(mood_or_note(mid, notes()), 40)
+    await asyncio.sleep(4)
+
+    mid = await _send(ctx, u, "pre", [investor], density=density)         # ⏰ investor (hard)
+    await _wait_for(tapped(mid), 20)
+    await asyncio.sleep(6)
+    mid = await _send(ctx, u, "post", [investor], density=density)        # ✅ investor → mood + note
+    await _wait_for(mood_or_note(mid, notes()), 45)
+    await asyncio.sleep(4)
+
+    mid = await _send(ctx, u, "pre", [priya], density=density)            # ⏰ 1:1 — echoes the journal
+    await _wait_for(tapped(mid), 15)
+    await asyncio.sleep(6)
+
+    await send_eod(ctx, u, force=True, include_future=True)               # 🌙 day closed (clock is compressed)
+    await asyncio.sleep(12)
+    await stats_cmd(update, ctx)                                          # 📊 what it learned
+    log.info("play finished for %s", chat_id)
 
 
 async def schedule_for_user(ctx: ContextTypes.DEFAULT_TYPE, user) -> int:
@@ -505,6 +591,7 @@ COMMANDS = [
     ("stats", "What I've learned about you"),
     ("status", "Connection and scheduled nudges"),
     ("demo", "Use the sample calendar"),
+    ("play", "Scripted 3-minute demo of a whole day"),
     ("help", "All commands"),
     ("reset", "Forget me and start over"),
 ]
@@ -519,7 +606,7 @@ def main() -> None:
     store.db()
     app = Application.builder().token(os.environ["TELEGRAM_BOT_TOKEN"]).post_init(register_commands).build()
     for name, fn in [("start", start), ("connect", connect_cmd), ("today", today), ("stats", stats_cmd),
-                     ("status", status), ("demo", demo), ("reset", reset), ("help", help_cmd), ("journal", journal_cmd), ("summary", summary_cmd),
+                     ("status", status), ("demo", demo), ("reset", reset), ("help", help_cmd), ("journal", journal_cmd), ("summary", summary_cmd), ("play", play),
                      ("disconnect", reset)]:
         app.add_handler(CommandHandler(name, fn))
     app.add_handler(CallbackQueryHandler(on_callback))

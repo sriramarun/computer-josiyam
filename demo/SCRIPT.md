@@ -54,3 +54,22 @@ Target: 90–120 seconds, phone screen only, portrait. One take of ~9 minutes re
 
 - No wifi on stage → messages still arrive from built-in templates; no LLM needed.
 - Phone dies → the recording is the demo. Never demo live if you have a recording.
+
+## The easy way: `/play`
+
+One command runs the whole day in about three minutes, pausing at each point for your real tap or note:
+
+1. Clear the chat history, `/reset`, start the screen recorder.
+2. `/start` → name → timezone → sun sign (30 s of onboarding on camera).
+3. Send `/play`. Then just react:
+   - day reading → wait
+   - ⏰ standup → tap 👍
+   - ✅ standup → tap 😐, type "quick one, nothing new"
+   - ⏰ investor call → tap 👎
+   - ✅ investor call → tap 🔥, type "they pushed on burn, I held the line"
+   - ⏰ 1:1 with Priya → read it; it echoes your note
+   - 🌙 day closed → arrives on its own
+   - 📊 stats → arrives on its own
+4. Stop recording. Total ≈ 3½ minutes, no editing required beyond trimming the ends.
+
+If you don't tap, it moves on after ~20–45 s. Every message is the real pipeline; only the clock is compressed — and the first message on screen says so.
