@@ -238,7 +238,7 @@ async def on_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         toast, footer = (("More like this.", "👍 noted — more of this voice") if kind == "up"
                          else ("Understood. Changing register.", "👎 noted — the next one will sound different"))
         await q.answer(toast)
-        log.info("feedback %s on %s (%.0fs) -> %s", kind, reg, latency, store.tone_weights(chat_id))
+        log.info("feedback %s from %s on %s (%.0fs) -> %s", kind, chat_id, reg, latency, store.tone_weights(chat_id))
 
     elif kind == "mood":
         value, _, mid = arg.partition(":")
@@ -250,7 +250,7 @@ async def on_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         toast = {"rough": "Noted. That one's behind you.", "fine": "Fine is fine.", "great": "Good. Carry that."}[value]
         footer = {"rough": "😮‍💨 rough — noted", "fine": "😐 fine — noted", "great": "🔥 great — noted"}[value]
         await q.answer(toast)
-        log.info("mood %s for message %d", value, message_id)
+        log.info("mood %s from %s for message %d", value, chat_id, message_id)
     else:
         await q.answer()
         return
@@ -279,6 +279,21 @@ def _keyboard(kind: str, message_id: int) -> InlineKeyboardMarkup:
     ]])
 
 
+def _header(kind: str, events: list[dict]) -> str:
+    """The factual reminder that goes above the encouragement: what, when."""
+    if not events:
+        return ""
+    ev = events[0]
+    if kind == "pre":
+        mins = max(1, round((ev["start"] - datetime.now(ev["start"].tzinfo)).total_seconds() / 60))
+        return f"⏰ {ev['title']}\n{ev['start']:%H:%M}–{ev['end']:%H:%M} · in {mins} min"
+    if kind == "post":
+        return f"✅ {ev['title']}\nended {ev['end']:%H:%M}"
+    lines = "\n".join(f"{e['start']:%H:%M}  {e['title']}" for e in events[:8])
+    more = f"\n…and {len(events) - 8} more" if len(events) > 8 else ""
+    return f"📅 {events[0]['start']:%a %-d %b} · {len(events)} meeting{'s' if len(events) != 1 else ''}\n{lines}{more}"
+
+
 async def _send(ctx: ContextTypes.DEFAULT_TYPE, user, kind: str, events: list[dict], density: int | None = None) -> bool:
     chat_id = user["chat_id"]
     register = pick_register(store.tone_weights(chat_id), avoid=store.last_register(chat_id))
@@ -291,9 +306,10 @@ async def _send(ctx: ContextTypes.DEFAULT_TYPE, user, kind: str, events: list[di
     }
     text = await asyncio.to_thread(compose, kind, register, events, PRE_LEAD, user["name"], context)
     message_id = store.record_message(chat_id, kind, register, text, ev)
+    full = f"{_header(kind, events)}\n\n{text}".strip()
     for attempt in range(4):  # wifi blips happen; a nudge 10s late beats a nudge never
         try:
-            msg = await ctx.bot.send_message(chat_id=chat_id, text=text, reply_markup=_keyboard(kind, message_id))
+            msg = await ctx.bot.send_message(chat_id=chat_id, text=full, reply_markup=_keyboard(kind, message_id))
             store.set_tg_message_id(message_id, msg.message_id)
             log.info("sent %s [%s] to %s for %s", kind, register, chat_id, ev["title"] if ev else "-")
             return True

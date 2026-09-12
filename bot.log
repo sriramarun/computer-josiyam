@@ -1,4 +1,3 @@
-2026-09-12 13:59:15,855 INFO josiyam: Computer Josiyam up. lead=1m lag=0m poll=15s day-ahead=08:30
-2026-09-12 13:59:16,547 INFO telegram.ext.Application: Application started
-2026-09-12 13:59:20,875 INFO josiyam: scheduled 8 nudge(s) for 1219867729 from 4 event(s)
-2026-09-12 13:59:20,883 INFO josiyam: scheduled 8 nudge(s) for 8961619989 from 4 event(s)
+2026-09-12 14:03:43,074 INFO josiyam: Computer Josiyam up. lead=1m lag=0m poll=15s day-ahead=08:30
+2026-09-12 14:03:43,670 INFO telegram.ext.Application: Application started
+2026-09-12 14:03:48,096 INFO josiyam: scheduled 8 nudge(s) for 8961619989 from 4 event(s)
