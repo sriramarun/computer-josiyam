@@ -1,4 +1,4 @@
-"""Meeting Oracle — Telegram bot that reads an ICS calendar and sends
+"""Computer Josiyam — Telegram bot that reads an ICS calendar and sends
 positive-reinforcement nudges before and after meetings.
 
 One-time setup: /start, then /connect <ics url>. After that, no input needed.
@@ -60,8 +60,8 @@ async def start(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     state["chat_id"] = update.effective_chat.id
     save_state(state)
     await update.message.reply_text(
-        "Hi, I'm Meeting Oracle.\n\n"
-        "Connect your calendar once and I'll send you a word of encouragement "
+        "Hi, I'm Computer Josiyam.\n\n"
+        "Josiyam means astrology. Connect your calendar once and I'll read your day and send a word of encouragement "
         f"{PRE_LEAD} min before each meeting and a close-out after.\n\n"
         "Google Calendar → Settings → your calendar → 'Secret address in iCal format'. "
         "Then send me:\n/connect <that url>"
@@ -206,7 +206,7 @@ def main() -> None:
     app.job_queue.run_repeating(poll_feed, interval=POLL_SECONDS, first=5, name="poll")
     app.job_queue.run_daily(send_day_ahead, time=time(DAY_AHEAD_HOUR, DAY_AHEAD_MIN, tzinfo=TZ), name="day-ahead")
 
-    log.info("Meeting Oracle up. lead=%dm lag=%dm poll=%ds", PRE_LEAD, POST_LAG, POLL_SECONDS)
+    log.info("Computer Josiyam up. lead=%dm lag=%dm poll=%ds", PRE_LEAD, POST_LAG, POLL_SECONDS)
     app.run_polling(drop_pending_updates=True)
 
 

@@ -30,7 +30,7 @@ def fmt(dt):
 lines = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
-    "PRODID:-//meeting-oracle//demo//EN",
+    "PRODID:-//computer-josiyam//demo//EN",
     "BEGIN:VTIMEZONE",
     "TZID:Asia/Kolkata",
     "BEGIN:STANDARD",
@@ -44,7 +44,7 @@ for title, dur, desc in events:
     end = t + timedelta(minutes=dur)
     lines += [
         "BEGIN:VEVENT",
-        f"UID:{uuid.uuid4()}@meeting-oracle",
+        f"UID:{uuid.uuid4()}@computer-josiyam",
         f"DTSTAMP:{fmt(now)}Z",
         f"DTSTART;TZID=Asia/Kolkata:{fmt(t)}",
         f"DTEND;TZID=Asia/Kolkata:{fmt(end)}",
@@ -57,7 +57,7 @@ for title, dur, desc in events:
 # one recurring weekly event to prove RRULE expansion works
 lines += [
     "BEGIN:VEVENT",
-    f"UID:{uuid.uuid4()}@meeting-oracle",
+    f"UID:{uuid.uuid4()}@computer-josiyam",
     f"DTSTAMP:{fmt(now)}Z",
     f"DTSTART;TZID=Asia/Kolkata:{fmt(now + timedelta(hours=20))}",
     f"DTEND;TZID=Asia/Kolkata:{fmt(now + timedelta(hours=20, minutes=30))}",

@@ -1,4 +1,6 @@
-# Meeting Oracle
+# Computer Josiyam
+
+*Josiyam* (ஜோசியம்) is Tamil for astrology.
 
 A Telegram bot that reads your calendar once and then, without you ever typing again, sends a short word of encouragement before each meeting and a close-out after.
 

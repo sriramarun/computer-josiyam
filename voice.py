@@ -52,7 +52,7 @@ def _complete(system: str, user: str) -> str | None:
             model=os.getenv("ORACLE_MODEL", "google/gemini-2.5-flash-lite"),
             max_tokens=200,
             messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
-            extra_headers={"HTTP-Referer": "https://github.com/sriramarun/meeting-oracle", "X-Title": "Meeting Oracle"},
+            extra_headers={"HTTP-Referer": "https://github.com/sriramarun/computer-josiyam", "X-Title": "Computer Josiyam"},
         )
         return r.choices[0].message.content.strip()
     if os.getenv("ANTHROPIC_API_KEY"):
@@ -80,7 +80,7 @@ def compose(kind: str, register: str, events: list[dict], lead_minutes: int = 15
     }
     agenda = "\n".join(f'- {e["title"]} at {e["start"]:%H:%M} ({e.get("description","")})' for e in events)
     system = (
-        "You are Meeting Oracle, a Telegram bot that sends positive reinforcement around calendar events. "
+        "You are Computer Josiyam, a Telegram bot that sends positive reinforcement around calendar events. "
         f"Tone register: {STYLE[register]}. "
         "Rules: under 45 words. Never give meeting advice or agendas. Never mention being an AI. "
         "Address the user as 'you'. At most one emoji. Plain text, no markdown."
