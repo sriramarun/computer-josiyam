@@ -26,6 +26,7 @@ from voice import compose, pick_register
 load_dotenv()
 logging.basicConfig(format="%(asctime)s %(levelname)s %(name)s: %(message)s", level=logging.INFO)
 logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("httpx2").setLevel(logging.WARNING)
 logging.getLogger("apscheduler").setLevel(logging.WARNING)
 log = logging.getLogger("josiyam")
 
@@ -102,7 +103,40 @@ async def on_text(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     elif u["step"] == "ics":
         await update.message.reply_text("That doesn't look like a calendar link. " + ICS_HOWTO)
     else:
-        await update.message.reply_text("I only push messages, I don't chat. /today · /stats · /help")
+        await journal_note(update, ctx, u, text)
+
+
+async def journal_note(update: Update, ctx: ContextTypes.DEFAULT_TYPE, u, text: str) -> None:
+    """Anything typed after setup is a journal entry. Link it to the meeting we last spoke about, reply in one line."""
+    chat_id = u["chat_id"]
+    _, about = store.record_journal(chat_id, text)
+    register = pick_register(store.tone_weights(chat_id), avoid=store.last_register(chat_id))
+    context = {"sunsign": u["sunsign"], "note": text, "note_about": about}
+    reply = await asyncio.to_thread(compose, "ack", register, [], PRE_LEAD, u["name"], context)
+    store.record_message(chat_id, "ack", register, reply, {"title": about} if about else None)
+    tag = f"📓 saved · {about}" if about else "📓 saved"
+    await update.message.reply_text(f"{tag}\n{reply}")
+    log.info("journal from %s (%s): %s", chat_id, about, text[:60])
+
+
+async def journal_cmd(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    chat_id = update.effective_chat.id
+    u = store.get_user(chat_id)
+    rows = store.journal_days(chat_id, days=7)
+    if not rows:
+        await update.message.reply_text("Nothing in the journal yet. Just type anything — a thought, how a meeting went — and it's kept here.")
+        return
+    tz = tz_of(u) if u else ZoneInfo("Asia/Kolkata")
+    out, day = [], None
+    for r in rows:
+        at = datetime.fromisoformat(r["at"]).astimezone(tz)
+        if at.date() != day:
+            day = at.date()
+            out.append(f"\n📓 {at:%a %-d %b}")
+        about = f" · {r['event_title']}" if r["event_title"] else ""
+        out.append(f"{at:%H:%M}{about}\n{r['text']}")
+    text = "\n".join(out).strip()
+    await update.message.reply_text(text[:4000])
 
 
 async def on_tz(q, chat_id: int, tz: str) -> None:
@@ -184,6 +218,7 @@ async def stats_cmd(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         f"By voice:\n{regs}\n"
         f"Avg time to react: {lat}\n"
         f"Post-meeting moods: {moods}\n"
+        f"Journal entries: {s['journal']}\n"
         f"Current voice weights: {w}"
     )
 
@@ -211,7 +246,8 @@ async def reset(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 async def help_cmd(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text(
         "/start — set up (once)\n/today — reading for the rest of today\n/stats — what I've learned about you\n"
-        "/status — connection and schedule\n/demo — use the sample calendar\n/reset — forget me"
+        "/journal — your notes from the last 7 days\n/status — connection and schedule\n/demo — use the sample calendar\n/reset — forget me\n\n"
+        "Type anything else and it goes in the journal."
     )
 
 
@@ -289,6 +325,8 @@ def _header(kind: str, events: list[dict]) -> str:
         return f"⏰ {ev['title']}\n{ev['start']:%H:%M}–{ev['end']:%H:%M} · in {mins} min"
     if kind == "post":
         return f"✅ {ev['title']}\nended {ev['end']:%H:%M}"
+    if kind == "ack":
+        return ""
     lines = "\n".join(f"{e['start']:%H:%M}  {e['title']}" for e in events[:8])
     more = f"\n…and {len(events) - 8} more" if len(events) > 8 else ""
     return f"📅 {events[0]['start']:%a %-d %b} · {len(events)} meeting{'s' if len(events) != 1 else ''}\n{lines}{more}"
@@ -302,6 +340,7 @@ async def _send(ctx: ContextTypes.DEFAULT_TYPE, user, kind: str, events: list[di
         "event_class": ev.get("klass") if ev else None,
         "density": density,
         "moods": [r["value"] for r in store.recent_moods(chat_id)][:5] if kind in ("day", "pre") else None,
+        "journal": [r["text"][:120] for r in store.recent_journal(chat_id)][:3],
         "sunsign": user["sunsign"],
     }
     text = await asyncio.to_thread(compose, kind, register, events, PRE_LEAD, user["name"], context)
@@ -398,7 +437,7 @@ def main() -> None:
     store.db()
     app = Application.builder().token(os.environ["TELEGRAM_BOT_TOKEN"]).build()
     for name, fn in [("start", start), ("connect", connect_cmd), ("today", today), ("stats", stats_cmd),
-                     ("status", status), ("demo", demo), ("reset", reset), ("help", help_cmd),
+                     ("status", status), ("demo", demo), ("reset", reset), ("help", help_cmd), ("journal", journal_cmd),
                      ("disconnect", reset)]:
         app.add_handler(CommandHandler(name, fn))
     app.add_handler(CallbackQueryHandler(on_callback))

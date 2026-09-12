@@ -28,9 +28,10 @@ KIND_BRIEF = {
     "pre": "The meeting starts in {lead} minutes. One thing to walk in with.",
     "post": "The meeting just ended. Close it out: acknowledge, release, one small next step.",
     "day": "It's morning. A short reading for the day ahead across all these events.",
+    "ack": "They just wrote a journal note (below). Reply in one short line: reflect it back, no advice, no questions.",
 }
 
-WORD_CAP = {"pre": 25, "post": 25, "day": 60}
+WORD_CAP = {"pre": 25, "post": 25, "day": 60, "ack": 15}
 
 QUOTES = [
     '"Courage is grace under pressure." — Hemingway',
@@ -53,6 +54,12 @@ FALLBACK = {
         "hype": "{title}: done. One line of notes. Move.",
         "josiyam": "{title} has left your fourth house. Release it, {sign}. The next transit is yours.",
         "quote": "{quote}\nThat one's behind you.",
+    },
+    "ack": {
+        "warm": "Noted. Thank you for telling me.",
+        "hype": "Logged. Onward.",
+        "josiyam": "Written into the chart, {sign}.",
+        "quote": "\"The unexamined life is not worth living.\" — Socrates. Noted.",
     },
     "day": {
         "warm": "{n} meetings today. Each is a room you already know. Start with {first}.",
@@ -130,13 +137,18 @@ def compose(kind: str, register: str, events: list[dict], lead_minutes: int = 15
         signals.append(f"They have {context['density']} meetings today — keep it especially short.")
     if context.get("moods"):
         signals.append("Recent post-meeting moods (newest first): " + ", ".join(context["moods"]) + ". Acknowledge lightly only if relevant.")
+    if context.get("journal"):
+        notes = " | ".join(f'"{j}"' for j in context["journal"])
+        signals.append(f"Their own recent journal notes (newest first): {notes}. Let these colour the message; quote them only if it lands naturally.")
+    if context.get("note"):
+        signals.append(f'The note they just wrote: "{context["note"]}"' + (f' (about: {context["note_about"]})' if context.get("note_about") else ""))
     system = (
         "You are Computer Josiyam, a Telegram bot that sends positive reinforcement around calendar events. "
         f"Voice: {STYLE[register]} "
         f"Hard rules: under {WORD_CAP[kind]} words. One or two sentences. Never give meeting advice or agendas. "
         f"Never mention being an AI. {who} At most one emoji. Plain text, no markdown, no preamble."
     )
-    user = KIND_BRIEF[kind].format(lead=lead_minutes) + "\n\nEvents:\n" + agenda
+    user = KIND_BRIEF[kind].format(lead=lead_minutes) + ("\n\nEvents:\n" + agenda if events else "")
     if signals:
         user += "\n\nContext:\n" + "\n".join(f"- {x}" for x in signals)
     try:

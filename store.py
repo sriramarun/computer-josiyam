@@ -54,6 +54,14 @@ CREATE TABLE IF NOT EXISTS mood (
     value       TEXT,                    -- rough / fine / great  (tap)  |  e.g. dense_day (passive)
     at          TEXT
 );
+CREATE TABLE IF NOT EXISTS journal (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    chat_id     INTEGER,
+    text        TEXT,
+    event_uid   TEXT,                    -- the meeting the bot last spoke about, if recent
+    event_title TEXT,
+    at          TEXT
+);
 CREATE TABLE IF NOT EXISTS sent (
     chat_id INTEGER,
     key     TEXT,
@@ -219,6 +227,7 @@ def stats(chat_id: int) -> dict:
     ).fetchall()
     lat = d.execute("SELECT AVG(latency_s) FROM feedback WHERE chat_id=?", (chat_id,)).fetchone()[0]
     moods = d.execute("SELECT value, COUNT(*) c FROM mood WHERE chat_id=? AND source='tap' GROUP BY value", (chat_id,)).fetchall()
+    journal = d.execute("SELECT COUNT(*) FROM journal WHERE chat_id=?", (chat_id,)).fetchone()[0]
     return {
         "messages": total,
         "up": fb.get("up", 0),
@@ -226,8 +235,42 @@ def stats(chat_id: int) -> dict:
         "per_register": {r["register"]: (r["up"], r["n"]) for r in per_reg},
         "avg_latency_s": lat,
         "moods": {r["value"]: r["c"] for r in moods},
+        "journal": journal,
         "weights": tone_weights(chat_id),
     }
+
+
+# -------------------------------------------------------------- journal ----
+def last_message_within(chat_id: int, minutes: int = 90) -> sqlite3.Row | None:
+    return db().execute(
+        "SELECT * FROM messages WHERE chat_id=? AND kind IN ('pre','post') AND sent_at >= datetime('now', ?) "
+        "ORDER BY id DESC LIMIT 1", (chat_id, f"-{minutes} minutes")
+    ).fetchone()
+
+
+def record_journal(chat_id: int, text: str) -> tuple[int, str | None]:
+    m = last_message_within(chat_id)
+    title = m["event_title"] if m else None
+    cur = db().execute(
+        "INSERT INTO journal (chat_id, text, event_uid, event_title, at) VALUES (?,?,?,?,?)",
+        (chat_id, text, m["event_uid"] if m else None, title, _now()),
+    )
+    db().commit()
+    return cur.lastrowid, title
+
+
+def recent_journal(chat_id: int, hours: int = 48, limit: int = 5) -> list[sqlite3.Row]:
+    return db().execute(
+        "SELECT * FROM journal WHERE chat_id=? AND at >= datetime('now', ?) ORDER BY id DESC LIMIT ?",
+        (chat_id, f"-{hours} hours", limit),
+    ).fetchall()
+
+
+def journal_days(chat_id: int, days: int = 7) -> list[sqlite3.Row]:
+    return db().execute(
+        "SELECT * FROM journal WHERE chat_id=? AND at >= datetime('now', ?) ORDER BY id ASC",
+        (chat_id, f"-{days} days"),
+    ).fetchall()
 
 
 # ----------------------------------------------------------------- sent ----

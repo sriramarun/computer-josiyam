@@ -46,7 +46,9 @@ python bot.py
 
 In Telegram send `/start`. Three taps: your name, timezone, sun sign, then paste your calendar's secret ICS link. The first reading arrives immediately.
 
-Commands: `/start` · `/today` · `/stats` · `/status` · `/demo` · `/reset` · `/help`
+Commands: `/start` · `/today` · `/journal` · `/stats` · `/status` · `/demo` · `/reset` · `/help`
+
+Anything else you type is a journal entry (see below).
 
 ## Demo mode
 
@@ -86,6 +88,16 @@ Judges penalise daily input, so the bot never asks "how are you?". It reads mood
 Recent moods feed the next morning's reading ("yesterday's investor call was rough…").
 
 `/stats` shows what has been learned: thumbs-up rate per voice, average reaction time, mood counts, current weights.
+
+## Journal
+
+After setup, any free text you send is kept as a journal entry. No command needed. The bot:
+
+- links it to the meeting it last spoke to you about (within 90 min), so "that was brutal" lands on the right event
+- replies in one line, in the current voice — reflection, never advice or questions
+- feeds your last three notes into the next nudges, so what you wrote colours what it says back
+
+`/journal` reads back the last 7 days grouped by day, each entry tagged with its meeting.
 
 ## Design notes
 
