@@ -1,7 +1,8 @@
 """Turn an event + a tone register into a short positive-reinforcement message.
 
-Uses Claude if ANTHROPIC_API_KEY is set; otherwise falls back to templates so
-the demo never dies on a missing key.
+Uses OpenRouter if OPENROUTER_API_KEY is set (any cheap model), else Claude if
+ANTHROPIC_API_KEY is set, else built-in templates so the demo never dies on a
+missing key or a network blip.
 """
 from __future__ import annotations
 
@@ -41,16 +42,30 @@ FALLBACK = {
 }
 
 
-def _client():
-    key = os.getenv("ANTHROPIC_API_KEY")
-    if not key:
-        return None
-    try:
+def _complete(system: str, user: str) -> str | None:
+    """Try OpenRouter (OpenAI-compatible), then Anthropic. None if neither is configured."""
+    if os.getenv("OPENROUTER_API_KEY"):
+        from openai import OpenAI
+
+        client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=os.environ["OPENROUTER_API_KEY"])
+        r = client.chat.completions.create(
+            model=os.getenv("ORACLE_MODEL", "google/gemini-2.5-flash-lite"),
+            max_tokens=200,
+            messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
+            extra_headers={"HTTP-Referer": "https://github.com/sriramarun/meeting-oracle", "X-Title": "Meeting Oracle"},
+        )
+        return r.choices[0].message.content.strip()
+    if os.getenv("ANTHROPIC_API_KEY"):
         import anthropic
 
-        return anthropic.Anthropic()
-    except Exception:
-        return None
+        msg = anthropic.Anthropic().messages.create(
+            model=os.getenv("ORACLE_MODEL", "claude-haiku-4-5-20251001"),
+            max_tokens=200,
+            system=system,
+            messages=[{"role": "user", "content": user}],
+        )
+        return msg.content[0].text.strip()
+    return None
 
 
 def compose(kind: str, register: str, events: list[dict], lead_minutes: int = 15) -> str:
@@ -63,10 +78,6 @@ def compose(kind: str, register: str, events: list[dict], lead_minutes: int = 15
         "n": len(events),
         "first": ev.get("title", ""),
     }
-    client = _client()
-    if client is None:
-        return FALLBACK[kind][register].format(**slots)
-
     agenda = "\n".join(f'- {e["title"]} at {e["start"]:%H:%M} ({e.get("description","")})' for e in events)
     system = (
         "You are Meeting Oracle, a Telegram bot that sends positive reinforcement around calendar events. "
@@ -76,15 +87,10 @@ def compose(kind: str, register: str, events: list[dict], lead_minutes: int = 15
     )
     user = KIND_BRIEF[kind].format(lead=lead_minutes) + "\n\nEvents:\n" + agenda
     try:
-        msg = client.messages.create(
-            model=os.getenv("ORACLE_MODEL", "claude-haiku-4-5-20251001"),
-            max_tokens=200,
-            system=system,
-            messages=[{"role": "user", "content": user}],
-        )
-        return msg.content[0].text.strip()
+        text = _complete(system, user)
     except Exception:
-        return FALLBACK[kind][register].format(**slots)
+        text = None
+    return text or FALLBACK[kind][register].format(**slots)
 
 
 def pick_register(weights: dict[str, float]) -> str:

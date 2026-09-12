@@ -14,7 +14,7 @@ ICS URL (polled every 60s)
         T+dur+5m    post-meeting close-out
    → 08:30 daily    day-ahead reading
    → each fire: pick a tone register from learned weights
-        → Claude (Haiku) writes ≤45 words in that register
+        → LLM (OpenRouter, any cheap model) writes ≤45 words in that register
         → send with 👍 / 👎 buttons
         → tap adjusts the weights for the next message
 ```
@@ -36,7 +36,7 @@ No OAuth, no consent screens, no client secrets. The ICS secret address works fo
 ```bash
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env      # add TELEGRAM_BOT_TOKEN (from @BotFather) and ANTHROPIC_API_KEY
+cp .env.example .env      # add TELEGRAM_BOT_TOKEN (from @BotFather) and OPENROUTER_API_KEY
 python bot.py
 ```
 
