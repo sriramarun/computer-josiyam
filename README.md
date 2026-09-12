@@ -13,8 +13,9 @@ ICS URL (polled every 60s)
    → expand next 24h of events (RRULE-aware, all-day events skipped)
    → for each event, schedule two jobs, deduped by uid:kind:start
         T-15m       pre-meeting nudge
-        T+dur+5m    post-meeting close-out
+        T+dur+5m    post-meeting close-out + journal prompt (😮‍💨 / 😐 / 🔥, or type)
    → 08:30 daily    day-ahead reading
+   → 21:00 daily    end-of-day summary: each meeting with its mood, your notes, one reflection
    → each fire: pick a tone register from learned weights
         → LLM (OpenRouter, any cheap model) writes ≤25 words (day reading ≤60) in that voice,
           given the event's emotional class, the day's density, recent moods
@@ -46,7 +47,7 @@ python bot.py
 
 In Telegram send `/start`. Three taps: your name, timezone, sun sign, then paste your calendar's secret ICS link. The first reading arrives immediately.
 
-Commands: `/start` · `/today` · `/journal` · `/stats` · `/status` · `/demo` · `/reset` · `/help`
+Commands: `/start` · `/today` · `/summary` · `/journal` · `/stats` · `/status` · `/demo` · `/reset` · `/help`
 
 Anything else you type is a journal entry (see below).
 
@@ -98,6 +99,8 @@ After setup, any free text you send is kept as a journal entry. No command neede
 - feeds your last three notes into the next nudges, so what you wrote colours what it says back
 
 `/journal` reads back the last 7 days grouped by day, each entry tagged with its meeting.
+
+**End of day** (21:00 local, `EOD_AT`): one message listing every meeting with the mood you tapped, your last notes, and a short reflection. `/summary` sends it on demand.
 
 ## Design notes
 

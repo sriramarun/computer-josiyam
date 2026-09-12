@@ -200,6 +200,17 @@ def recent_moods(chat_id: int, hours: int = 36) -> list[sqlite3.Row]:
     ).fetchall()
 
 
+def moods_by_event(chat_id: int, since_iso: str) -> dict[str, str]:
+    rows = db().execute(
+        "SELECT event_uid, value FROM mood WHERE chat_id=? AND source='tap' AND at >= ? ORDER BY id", (chat_id, since_iso)
+    ).fetchall()
+    return {r["event_uid"]: r["value"] for r in rows if r["event_uid"]}
+
+
+def journal_since(chat_id: int, since_iso: str) -> list[sqlite3.Row]:
+    return db().execute("SELECT * FROM journal WHERE chat_id=? AND at >= ? ORDER BY id", (chat_id, since_iso)).fetchall()
+
+
 def tone_weights(chat_id: int) -> dict[str, float]:
     """All voices start equal; recency-weighted feedback moves them. Nothing is ever banned."""
     w = dict(SEED)

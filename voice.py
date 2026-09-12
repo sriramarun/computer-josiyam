@@ -29,9 +29,10 @@ KIND_BRIEF = {
     "post": "The meeting just ended. Close it out: acknowledge, release, one small next step.",
     "day": "It's morning. A short reading for the day ahead across all these events.",
     "ack": "They just wrote a journal note (below). Reply in one short line: reflect it back, no advice, no questions.",
+    "eod": "The day is over. A short reflection on it as a whole, using their moods and notes: what they carried, what they can put down now. End on one gentle line for tomorrow.",
 }
 
-WORD_CAP = {"pre": 25, "post": 25, "day": 60, "ack": 15}
+WORD_CAP = {"pre": 25, "post": 25, "day": 60, "ack": 15, "eod": 60}
 
 QUOTES = [
     '"Courage is grace under pressure." — Hemingway',
@@ -60,6 +61,12 @@ FALLBACK = {
         "hype": "Logged. Onward.",
         "josiyam": "Written into the chart, {sign}.",
         "quote": "\"The unexamined life is not worth living.\" — Socrates. Noted.",
+    },
+    "eod": {
+        "warm": "{n} meetings, and you were there for all of them. Put the day down now. Tomorrow gets a rested you.",
+        "hype": "{n} meetings. Done. Close the laptop.",
+        "josiyam": "The Sun has left your tenth house, {sign}. {n} transits survived. Rest is also a planet.",
+        "quote": "{quote}\nThe day is closed.",
     },
     "day": {
         "warm": "{n} meetings today. Each is a room you already know. Start with {first}.",
@@ -137,6 +144,8 @@ def compose(kind: str, register: str, events: list[dict], lead_minutes: int = 15
         signals.append(f"They have {context['density']} meetings today — keep it especially short.")
     if context.get("moods"):
         signals.append("Recent post-meeting moods (newest first): " + ", ".join(context["moods"]) + ". Acknowledge lightly only if relevant.")
+    if context.get("meeting_moods"):
+        signals.append("How each meeting went, from their taps: " + "; ".join(context["meeting_moods"]) + ".")
     if context.get("journal"):
         notes = " | ".join(f'"{j}"' for j in context["journal"])
         signals.append(f"Their own recent journal notes (newest first): {notes}. Let these colour the message; quote them only if it lands naturally.")

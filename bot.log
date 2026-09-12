@@ -1,2 +1,2 @@
-2026-09-12 14:11:18,930 INFO josiyam: Computer Josiyam up. lead=1m lag=0m poll=15s day-ahead=08:30
-2026-09-12 14:11:19,851 INFO telegram.ext.Application: Application started
+2026-09-12 14:16:10,243 INFO josiyam: Computer Josiyam up. lead=1m lag=0m poll=15s day-ahead=08:30 eod=21:00
+2026-09-12 14:16:11,338 INFO telegram.ext.Application: Application started

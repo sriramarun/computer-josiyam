@@ -34,6 +34,8 @@ PRE_LEAD = int(os.getenv("PRE_LEAD_MINUTES", "15"))
 POST_LAG = int(os.getenv("POST_LAG_MINUTES", "5"))
 POLL_SECONDS = int(os.getenv("POLL_SECONDS", "60"))
 DAY_AHEAD_AT = os.getenv("DAY_AHEAD_AT", "08:30")
+EOD_AT = os.getenv("EOD_AT", "21:00")
+MOOD_EMOJI = {"rough": "😮‍💨", "fine": "😐", "great": "🔥"}
 
 TIMEZONES = [("🇮🇳 IST", "Asia/Kolkata"), ("🇬🇧 London", "Europe/London"),
              ("🇺🇸 New York", "America/New_York"), ("🇺🇸 San Francisco", "America/Los_Angeles")]
@@ -284,7 +286,7 @@ async def on_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         if value == "great":
             store.record_feedback(message_id, chat_id, "up")
         toast = {"rough": "Noted. That one's behind you.", "fine": "Fine is fine.", "great": "Good. Carry that."}[value]
-        footer = {"rough": "😮‍💨 rough — noted", "fine": "😐 fine — noted", "great": "🔥 great — noted"}[value]
+        footer = f"{MOOD_EMOJI[value]} {value} — noted. Want to add a line? Just type it."
         await q.answer(toast)
         log.info("mood %s from %s for message %d", value, chat_id, message_id)
     else:
@@ -325,7 +327,7 @@ def _header(kind: str, events: list[dict]) -> str:
         return f"⏰ {ev['title']}\n{ev['start']:%H:%M}–{ev['end']:%H:%M} · in {mins} min"
     if kind == "post":
         return f"✅ {ev['title']}\nended {ev['end']:%H:%M}"
-    if kind == "ack":
+    if kind in ("ack", "eod"):
         return ""
     lines = "\n".join(f"{e['start']:%H:%M}  {e['title']}" for e in events[:8])
     more = f"\n…and {len(events) - 8} more" if len(events) > 8 else ""
@@ -346,6 +348,8 @@ async def _send(ctx: ContextTypes.DEFAULT_TYPE, user, kind: str, events: list[di
     text = await asyncio.to_thread(compose, kind, register, events, PRE_LEAD, user["name"], context)
     message_id = store.record_message(chat_id, kind, register, text, ev)
     full = f"{_header(kind, events)}\n\n{text}".strip()
+    if kind == "post":
+        full += "\n\nHow did it go? Tap below — or type a line and it goes in your journal."
     for attempt in range(4):  # wifi blips happen; a nudge 10s late beats a nudge never
         try:
             msg = await ctx.bot.send_message(chat_id=chat_id, text=full, reply_markup=_keyboard(kind, message_id))
@@ -385,6 +389,62 @@ async def send_day_ahead(ctx: ContextTypes.DEFAULT_TYPE, user, force: bool = Fal
         return False
     store.mark_sent(user["chat_id"], key)
     return await _send(ctx, user, "day", evs, density=len(evs))
+
+
+async def send_eod(ctx: ContextTypes.DEFAULT_TYPE, user, force: bool = False) -> bool:
+    """End-of-day summary: every meeting with the mood tapped, the notes written, one reflection."""
+    if not user["ics_url"]:
+        return False
+    tz = tz_of(user)
+    now = datetime.now(tz)
+    key = f"eod:{now:%Y-%m-%d}"
+    if not force and store.already_sent(user["chat_id"], key):
+        return False
+    day_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    try:
+        evs = await asyncio.to_thread(upcoming, user["ics_url"], 24, day_start, tz)
+    except Exception as e:
+        log.warning("eod fetch failed: %s", e)
+        return False
+    evs = [e for e in evs if e["start"].date() == now.date() and e["start"] <= now]
+    if not evs and not force:
+        return False
+    since = day_start.astimezone(ZoneInfo("UTC")).isoformat(timespec="seconds")
+    moods = store.moods_by_event(user["chat_id"], since)
+    notes = store.journal_since(user["chat_id"], since)
+    store.mark_sent(user["chat_id"], key)
+
+    lines = [f"{e['start']:%H:%M}  {e['title']} {MOOD_EMOJI.get(moods.get(e['uid']), '')}".rstrip() for e in evs]
+    header = f"🌙 {now:%a %-d %b} · day closed · {len(evs)} meeting{'s' if len(evs) != 1 else ''}\n" + "\n".join(lines)
+    if notes:
+        header += f"\n\n📓 {len(notes)} note{'s' if len(notes) != 1 else ''}\n" + "\n".join(f"· {n['text'][:100]}" for n in notes[-3:])
+
+    chat_id = user["chat_id"]
+    register = pick_register(store.tone_weights(chat_id), avoid=store.last_register(chat_id))
+    context = {
+        "sunsign": user["sunsign"],
+        "density": len(evs),
+        "meeting_moods": [f"{e['title']}: {moods[e['uid']]}" for e in evs if e["uid"] in moods],
+        "journal": [n["text"][:120] for n in notes][-3:],
+    }
+    text = await asyncio.to_thread(compose, "eod", register, evs, PRE_LEAD, user["name"], context)
+    message_id = store.record_message(chat_id, "eod", register, text, None)
+    try:
+        msg = await ctx.bot.send_message(chat_id=chat_id, text=f"{header}\n\n{text}", reply_markup=_keyboard("eod", message_id))
+        store.set_tg_message_id(message_id, msg.message_id)
+        log.info("sent eod [%s] to %s (%d meetings, %d moods, %d notes)", register, chat_id, len(evs), len(moods), len(notes))
+        return True
+    except Exception as e:
+        log.warning("eod send failed: %s", e)
+        return False
+
+
+async def summary_cmd(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    u = store.get_user(update.effective_chat.id)
+    if not u or not u["ics_url"]:
+        await update.message.reply_text("No calendar yet. Send /start.")
+        return
+    await send_eod(ctx, u, force=True)
 
 
 async def schedule_for_user(ctx: ContextTypes.DEFAULT_TYPE, user) -> int:
@@ -428,14 +488,18 @@ async def poll_feed(ctx: ContextTypes.DEFAULT_TYPE) -> None:
 async def daily_tick(ctx: ContextTypes.DEFAULT_TYPE) -> None:
     """Once a minute: whose local clock just hit DAY_AHEAD_AT? Timezone-correct per user."""
     for user in store.connected_users():
-        if datetime.now(tz_of(user)).strftime("%H:%M") == DAY_AHEAD_AT:
+        hhmm = datetime.now(tz_of(user)).strftime("%H:%M")
+        if hhmm == DAY_AHEAD_AT:
             await send_day_ahead(ctx, user)
+        elif hhmm == EOD_AT:
+            await send_eod(ctx, user)
 
 
 # ----------------------------------------------------------------- main ----
 COMMANDS = [
     ("start", "Set up once: name, timezone, sun sign, calendar"),
     ("today", "Reading for the rest of today"),
+    ("summary", "How today went: meetings, moods, notes"),
     ("journal", "Your notes from the last 7 days"),
     ("stats", "What I've learned about you"),
     ("status", "Connection and scheduled nudges"),
@@ -454,7 +518,7 @@ def main() -> None:
     store.db()
     app = Application.builder().token(os.environ["TELEGRAM_BOT_TOKEN"]).post_init(register_commands).build()
     for name, fn in [("start", start), ("connect", connect_cmd), ("today", today), ("stats", stats_cmd),
-                     ("status", status), ("demo", demo), ("reset", reset), ("help", help_cmd), ("journal", journal_cmd),
+                     ("status", status), ("demo", demo), ("reset", reset), ("help", help_cmd), ("journal", journal_cmd), ("summary", summary_cmd),
                      ("disconnect", reset)]:
         app.add_handler(CommandHandler(name, fn))
     app.add_handler(CallbackQueryHandler(on_callback))
@@ -464,7 +528,7 @@ def main() -> None:
     app.job_queue.run_repeating(poll_feed, interval=POLL_SECONDS, first=5, name="poll")
     app.job_queue.run_repeating(daily_tick, interval=60, first=10, name="daily-tick")
 
-    log.info("Computer Josiyam up. lead=%dm lag=%dm poll=%ds day-ahead=%s", PRE_LEAD, POST_LAG, POLL_SECONDS, DAY_AHEAD_AT)
+    log.info("Computer Josiyam up. lead=%dm lag=%dm poll=%ds day-ahead=%s eod=%s", PRE_LEAD, POST_LAG, POLL_SECONDS, DAY_AHEAD_AT, EOD_AT)
     app.run_polling(drop_pending_updates=True)
 
 
