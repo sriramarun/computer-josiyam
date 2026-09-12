@@ -16,7 +16,7 @@ ICS URL (polled every 60s)
         T+dur+5m    post-meeting close-out
    → 08:30 daily    day-ahead reading
    → each fire: pick a tone register from learned weights
-        → LLM (OpenRouter, any cheap model) writes ≤45 words in that register,
+        → LLM (OpenRouter, any cheap model) writes ≤25 words (day reading ≤60) in that voice,
           given the event's emotional class, the day's density, recent moods
         → pre/day messages carry 👍 / 👎; post-meeting carries 😮‍💨 / 😐 / 🔥
         → every tap is a row in SQLite; weights are derived, never stored
@@ -44,7 +44,7 @@ cp .env.example .env      # add TELEGRAM_BOT_TOKEN (from @BotFather) and OPENROU
 python bot.py
 ```
 
-In Telegram send `/start`. Four taps: your name, timezone, voice (🌙 Josiyam / 🤝 Coach / 🔥 Hype), then paste your calendar's secret ICS link. The first reading arrives immediately.
+In Telegram send `/start`. Three taps: your name, timezone, sun sign, then paste your calendar's secret ICS link. The first reading arrives immediately.
 
 Commands: `/start` · `/today` · `/stats` · `/status` · `/demo` · `/reset` · `/help`
 
@@ -90,9 +90,9 @@ Recent moods feed the next morning's reading ("yesterday's investor call was rou
 ## Design notes
 
 - **Setup vs daily input.** Judges penalise daily input. One `/connect` is the only setup; after that the bot only ever pushes.
-- **Tone learning is weights, not bans.** Weights start from the chosen persona and are recomputed from the last 30 taps, newest counting most (👍 +0.5, 👎 −0.4, decay 0.92 per step). A disliked register still appears occasionally so the bot can recover if your taste changes.
+- **Tone learning is weights, not bans.** Four voices — josiyam (astrology, uses your sun sign), hype, warm, quote (a real attributed line) — shuffle with equal weight to start. Weights are recomputed from the last 30 taps, newest counting most (👍 +0.5, 👎 −0.4, decay 0.92 per step). A disliked register still appears occasionally so the bot can recover if your taste changes.
 - **Dedupe survives restarts.** Sent keys live in SQLite, so a crash mid-day never double-sends.
-- **Onboarding is four taps.** Name, timezone, voice, calendar link. Pasting a bare URL works — no one types `/connect`. The first reading arrives the second the calendar connects.
+- **Onboarding is three taps.** Name, timezone, sun sign, calendar link. Pasting a bare URL works — no one types `/connect`. The first reading arrives the second the calendar connects.
 - **Template fallback.** If the LLM key is missing or the API errors, messages still go out from built-in text. The demo can't die on a network blip.
 
 ## Gotchas

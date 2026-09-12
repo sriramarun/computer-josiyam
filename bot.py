@@ -1,7 +1,7 @@
 """Computer Josiyam — Telegram bot that reads an ICS calendar and sends
 positive-reinforcement nudges before and after meetings.
 
-One-time setup: /start walks through name → timezone → persona → calendar.
+One-time setup: /start walks through name → timezone → sun sign → calendar.
 After that the bot only ever pushes; the only input is a tap.
 """
 from __future__ import annotations
@@ -73,7 +73,7 @@ async def start(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         "Hi, I'm Computer Josiyam. Josiyam is Tamil for astrology.\n\n"
         "Connect your calendar once and I'll send a word of encouragement before each meeting "
         "and a close-out after. You never have to message me again.\n\n"
-        "Four quick questions. First: what should I call you?"
+        "Three quick questions. First: what should I call you?"
     )
 
 
@@ -97,8 +97,8 @@ async def on_text(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 
     if u["step"] == "tz":
         await update.message.reply_text("Tap one of the timezone buttons above.")
-    elif u["step"] == "persona":
-        await update.message.reply_text("Tap one of the voice buttons above.")
+    elif u["step"] == "sunsign":
+        await update.message.reply_text("Tap your sun sign above.")
     elif u["step"] == "ics":
         await update.message.reply_text("That doesn't look like a calendar link. " + ICS_HOWTO)
     else:
@@ -106,21 +106,16 @@ async def on_text(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 async def on_tz(q, chat_id: int, tz: str) -> None:
-    store.set_user(chat_id, tz=tz, step="persona")
-    kb = InlineKeyboardMarkup([[InlineKeyboardButton(p["label"], callback_data=f"persona:{key}") for key, p in store.PERSONAS.items()]])
+    store.set_user(chat_id, tz=tz, step="sunsign")
+    signs = store.SUNSIGNS
+    kb = InlineKeyboardMarkup([[InlineKeyboardButton(x, callback_data=f"sign:{x}") for x in signs[i:i + 4]] for i in range(0, 12, 4)])
     await q.edit_message_text(f"Timezone set: {tz}.")
-    await q.message.reply_text(
-        "How should I talk to you?\n\n"
-        "🌙 Josiyam — playful astrology, planets and houses\n"
-        "🤝 Coach — warm, steady, believes in you\n"
-        "🔥 Hype — short, punchy, energising",
-        reply_markup=kb,
-    )
+    await q.message.reply_text("Josiyam needs one thing: your sun sign.", reply_markup=kb)
 
 
-async def on_persona(q, chat_id: int, persona: str) -> None:
-    store.set_user(chat_id, persona=persona, step="ics")
-    await q.edit_message_text(f"Voice: {store.PERSONAS[persona]['label']}. You can change it later with 👍/👎.")
+async def on_sign(q, chat_id: int, sign: str) -> None:
+    store.set_user(chat_id, sunsign=sign, step="ics")
+    await q.edit_message_text(f"{sign}. Noted.")
     await q.message.reply_text(ICS_HOWTO)
 
 
@@ -157,7 +152,7 @@ async def demo(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     chat_id = update.effective_chat.id
     u = store.ensure_user(chat_id)
     if not u["name"]:
-        store.set_user(chat_id, name="Sriram")
+        store.set_user(chat_id, name="Sriram", sunsign=u["sunsign"] or "Leo", step="done")
     subprocess.run([sys.executable, "demo/seed.py"], check=True, capture_output=True)
     await update.message.reply_text("Using the sample calendar: a founder's Friday in Bangalore.")
     await do_connect(update, ctx, "demo/demo.ics")
@@ -199,7 +194,7 @@ async def status(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     jobs = [j for j in ctx.job_queue.jobs() if j.name.startswith(f"nudge:{chat_id}:")]
     await update.message.reply_text(
         f"Name: {u['name'] if u else '—'}\nTimezone: {u['tz'] if u else '—'}\n"
-        f"Voice: {u['persona'] if u else '—'}\nCalendar: {'connected' if u and u['ics_url'] else 'none'}\n"
+        f"Sun sign: {u['sunsign'] if u else '—'}\nCalendar: {'connected' if u and u['ics_url'] else 'none'}\n"
         f"Scheduled nudges: {len(jobs)}"
     )
 
@@ -230,9 +225,9 @@ async def on_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         await q.answer()
         await on_tz(q, chat_id, arg)
         return
-    if kind == "persona":
+    if kind == "sign":
         await q.answer()
-        await on_persona(q, chat_id, arg)
+        await on_sign(q, chat_id, arg)
         return
 
     if kind in ("up", "down"):
@@ -286,13 +281,13 @@ def _keyboard(kind: str, message_id: int) -> InlineKeyboardMarkup:
 
 async def _send(ctx: ContextTypes.DEFAULT_TYPE, user, kind: str, events: list[dict], density: int | None = None) -> bool:
     chat_id = user["chat_id"]
-    register = pick_register(store.tone_weights(chat_id))
+    register = pick_register(store.tone_weights(chat_id), avoid=store.last_register(chat_id))
     ev = events[0] if events else None
     context = {
         "event_class": ev.get("klass") if ev else None,
         "density": density,
         "moods": [r["value"] for r in store.recent_moods(chat_id)][:5] if kind in ("day", "pre") else None,
-        "persona": user["persona"],
+        "sunsign": user["sunsign"],
     }
     text = await asyncio.to_thread(compose, kind, register, events, PRE_LEAD, user["name"], context)
     message_id = store.record_message(chat_id, kind, register, text, ev)

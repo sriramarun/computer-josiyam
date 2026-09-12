@@ -1,5 +1,4 @@
-2026-09-12 13:52:25,093 INFO josiyam: Computer Josiyam up. lead=1m lag=0m poll=15s day-ahead=08:30
-2026-09-12 13:52:25,703 INFO telegram.ext.Application: Application started
-2026-09-12 13:52:30,116 INFO josiyam: scheduled 8 nudge(s) for 1219867729 from 4 event(s)
-2026-09-12 13:53:02,178 INFO httpx2: HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
-2026-09-12 13:53:03,207 INFO josiyam: sent pre [warm] to 1219867729 for Team standup
+2026-09-12 13:59:15,855 INFO josiyam: Computer Josiyam up. lead=1m lag=0m poll=15s day-ahead=08:30
+2026-09-12 13:59:16,547 INFO telegram.ext.Application: Application started
+2026-09-12 13:59:20,875 INFO josiyam: scheduled 8 nudge(s) for 1219867729 from 4 event(s)
+2026-09-12 13:59:20,883 INFO josiyam: scheduled 8 nudge(s) for 8961619989 from 4 event(s)

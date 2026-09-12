@@ -1,4 +1,10 @@
-"""Turn an event + a tone register into a short positive-reinforcement message.
+"""Turn an event + a voice register into a short positive-reinforcement message.
+
+Four registers, shuffled by learned weights (every tap moves them):
+  josiyam — playful astrology, uses the user's sun sign
+  hype    — short, direct, energising
+  warm    — gentle, like a kind friend
+  quote   — a real, attributed quote that fits the moment, plus at most one line
 
 Uses OpenRouter if OPENROUTER_API_KEY is set (any cheap model), else Claude if
 ANTHROPIC_API_KEY is set, else built-in templates so the demo never dies on a
@@ -9,35 +15,50 @@ from __future__ import annotations
 import os
 import random
 
-REGISTERS = ("warm", "punchy", "cosmic")
+REGISTERS = ("josiyam", "hype", "warm", "quote")
 
 STYLE = {
+    "josiyam": "playful Tamil-astrology voice: rasi, nakshatram, planets, houses — always landing on a concrete confidence boost. Mention their sun sign if known.",
+    "hype": "short, direct, energising. Verbs. No softening.",
     "warm": "gentle, encouraging, like a kind friend who believes in them",
-    "punchy": "short, direct, energising, one or two sentences max",
-    "cosmic": "playful astrology voice — planets, houses, retrogrades — but always landing on a concrete confidence boost",
+    "quote": "one real, correctly attributed quote from a real person (author, athlete, scientist, film) that fits this moment, in quotation marks with the name, then at most one short line tying it to them. No invented quotes.",
 }
 
 KIND_BRIEF = {
-    "pre": "The meeting starts in {lead} minutes. Give them one thing to walk in with.",
+    "pre": "The meeting starts in {lead} minutes. One thing to walk in with.",
     "post": "The meeting just ended. Close it out: acknowledge, release, one small next step.",
-    "day": "It's morning. Give a one-paragraph reading for the day ahead across all these events.",
+    "day": "It's morning. A short reading for the day ahead across all these events.",
 }
+
+WORD_CAP = {"pre": 25, "post": 25, "day": 60}
+
+QUOTES = [
+    '"Courage is grace under pressure." — Hemingway',
+    '"You miss 100% of the shots you don\'t take." — Wayne Gretzky',
+    '"It always seems impossible until it\'s done." — Nelson Mandela',
+    '"Do the thing and you will have the power." — Emerson',
+    '"Whether you think you can or you can\'t, you\'re right." — Henry Ford',
+    '"Start where you are. Use what you have. Do what you can." — Arthur Ashe',
+]
 
 FALLBACK = {
     "pre": {
-        "warm": "{title} in {lead} minutes. You've prepared more than you think. Walk in slow, breathe once, and let them come to you.",
-        "punchy": "{title} in {lead}. You know this room. Go.",
-        "cosmic": "Mercury is direct and so are you. {title} in {lead} minutes — the stars filed the agenda in your favour.",
+        "warm": "{title} in {lead} min. You've prepared more than you think. Breathe once, then go.",
+        "hype": "{title} in {lead}. You know this room. Go.",
+        "josiyam": "Mercury is direct and so are you, {sign}. {title} in {lead} — the chart is on your side.",
+        "quote": "{quote}\n{title} in {lead}.",
     },
     "post": {
-        "warm": "{title} is done. Whatever happened in there, you showed up fully. Take a sip of water before the next thing.",
-        "punchy": "{title}: done. Write one line of notes, then move.",
-        "cosmic": "{title} has left your fourth house. Release it. The next transit is yours to shape.",
+        "warm": "{title} done. Whatever happened, you showed up fully. Water, then the next thing.",
+        "hype": "{title}: done. One line of notes. Move.",
+        "josiyam": "{title} has left your fourth house. Release it, {sign}. The next transit is yours.",
+        "quote": "{quote}\nThat one's behind you.",
     },
     "day": {
-        "warm": "Today holds {n} meetings. Each is a room you already know how to be in. Start with the first one and let the day unfold.",
-        "punchy": "{n} meetings today. One at a time. First: {first}.",
-        "cosmic": "The chart for today shows {n} conjunctions, opening with {first}. Saturn asks for structure, Venus for warmth. You have both.",
+        "warm": "{n} meetings today. Each is a room you already know. Start with {first}.",
+        "hype": "{n} meetings. One at a time. First: {first}.",
+        "josiyam": "{n} conjunctions today for a {sign}, opening with {first}. Saturn asks for structure, Venus for warmth. You have both.",
+        "quote": "{quote}\n{n} meetings today, starting with {first}.",
     },
 }
 
@@ -52,7 +73,7 @@ def _complete(system: str, user: str) -> str | None:
         fallbacks = [m for m in os.getenv("JOSIYAM_FALLBACK_MODELS", "deepseek/deepseek-v3.2,google/gemma-4-31b-it:free").split(",") if m]
         r = client.chat.completions.create(
             model=primary,
-            max_tokens=400,
+            max_tokens=300,
             messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
             extra_headers={"HTTP-Referer": "https://github.com/sriramarun/computer-josiyam", "X-Title": "Computer Josiyam"},
             extra_body={
@@ -67,7 +88,7 @@ def _complete(system: str, user: str) -> str | None:
 
         msg = anthropic.Anthropic().messages.create(
             model=os.getenv("JOSIYAM_MODEL", "claude-haiku-4-5-20251001"),
-            max_tokens=200,
+            max_tokens=300,
             system=system,
             messages=[{"role": "user", "content": user}],
         )
@@ -80,7 +101,7 @@ def compose(kind: str, register: str, events: list[dict], lead_minutes: int = 15
     """kind: pre|post|day. events: one event for pre/post, all of today's for day.
 
     context (all optional): event_class, density (meetings today), moods (recent taps),
-    persona. These are the passive signals — nothing the user typed.
+    sunsign. These are passive signals — nothing the user typed today.
     """
     register = register if register in REGISTERS else "warm"
     context = context or {}
@@ -90,26 +111,30 @@ def compose(kind: str, register: str, events: list[dict], lead_minutes: int = 15
         "lead": lead_minutes,
         "n": len(events),
         "first": ev.get("title", ""),
+        "sign": context.get("sunsign") or "friend",
+        "quote": random.choice(QUOTES),
     }
     agenda = "\n".join(
         f'- {e["title"]} at {e["start"]:%H:%M} [{e.get("klass", "neutral")}] {e.get("description", "")}'.rstrip()
         for e in events
     )
-    who = f"The user's name is {name}. Use it at most once." if name else "Address the user as 'you'."
+    who = f"The user's name is {name}. Use it at most once, or not at all." if name else "Address the user as 'you'."
     signals = []
+    if context.get("sunsign"):
+        signals.append(f"Their sun sign is {context['sunsign']}.")
     if context.get("event_class") == "hard":
         signals.append("This meeting is emotionally loaded. Steady them; do not minimise it.")
     elif context.get("event_class") == "nourishing":
         signals.append("This is a nourishing, human meeting. Be light and glad for them.")
     if (context.get("density") or 0) >= 5:
-        signals.append(f"They have {context['density']} meetings today — a dense day. Keep it short, spare their attention.")
+        signals.append(f"They have {context['density']} meetings today — keep it especially short.")
     if context.get("moods"):
-        signals.append("Their recent post-meeting moods (newest first): " + ", ".join(context["moods"]) + ". Acknowledge the pattern lightly if relevant.")
+        signals.append("Recent post-meeting moods (newest first): " + ", ".join(context["moods"]) + ". Acknowledge lightly only if relevant.")
     system = (
         "You are Computer Josiyam, a Telegram bot that sends positive reinforcement around calendar events. "
-        f"Tone register: {STYLE[register]}. "
-        "Rules: under 45 words (day reading: under 90). Never give meeting advice or agendas. Never mention being an AI. "
-        f"{who} At most one emoji. Plain text, no markdown."
+        f"Voice: {STYLE[register]} "
+        f"Hard rules: under {WORD_CAP[kind]} words. One or two sentences. Never give meeting advice or agendas. "
+        f"Never mention being an AI. {who} At most one emoji. Plain text, no markdown, no preamble."
     )
     user = KIND_BRIEF[kind].format(lead=lead_minutes) + "\n\nEvents:\n" + agenda
     if signals:
@@ -121,8 +146,9 @@ def compose(kind: str, register: str, events: list[dict], lead_minutes: int = 15
     return text or FALLBACK[kind][register].format(**slots)
 
 
-def pick_register(weights: dict[str, float]) -> str:
-    """Weighted random choice, so a 👎 lowers a register instead of banning it."""
+def pick_register(weights: dict[str, float], avoid: str | None = None) -> str:
+    """Weighted random choice, so a 👎 lowers a register instead of banning it.
+    `avoid` is the register used last time, so two in a row is rare — it shuffles."""
     regs = list(REGISTERS)
-    w = [max(weights.get(r, 1.0), 0.05) for r in regs]
+    w = [max(weights.get(r, 1.0), 0.05) * (0.25 if r == avoid else 1.0) for r in regs]
     return random.choices(regs, weights=w, k=1)[0]

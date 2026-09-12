@@ -18,9 +18,10 @@ CREATE TABLE IF NOT EXISTS users (
     chat_id    INTEGER PRIMARY KEY,
     name       TEXT,
     tz         TEXT DEFAULT 'Asia/Kolkata',
-    persona    TEXT DEFAULT 'josiyam',
+    persona    TEXT,                     -- unused, kept for old rows
+    sunsign    TEXT,
     ics_url    TEXT,
-    step       TEXT DEFAULT 'name',      -- onboarding: name → tz → persona → ics → done
+    step       TEXT DEFAULT 'name',      -- onboarding: name → tz → sunsign → ics → done
     created_at TEXT
 );
 CREATE TABLE IF NOT EXISTS messages (
@@ -60,12 +61,10 @@ CREATE TABLE IF NOT EXISTS sent (
 );
 """
 
-# persona → starting tone weights. Feedback moves them from here.
-PERSONAS = {
-    "josiyam": {"label": "🌙 Josiyam", "seed": {"warm": 1.0, "punchy": 1.0, "cosmic": 2.5}},
-    "coach": {"label": "🤝 Coach", "seed": {"warm": 2.0, "punchy": 1.0, "cosmic": 0.3}},
-    "hype": {"label": "🔥 Hype", "seed": {"warm": 0.5, "punchy": 2.5, "cosmic": 0.5}},
-}
+SEED = {"josiyam": 1.0, "hype": 1.0, "warm": 1.0, "quote": 1.0}
+
+SUNSIGNS = ["Aries", "Taurus", "Gemini", "Cancer", "Leo", "Virgo",
+            "Libra", "Scorpio", "Sagittarius", "Capricorn", "Aquarius", "Pisces"]
 
 _conn: sqlite3.Connection | None = None
 
@@ -80,6 +79,9 @@ def db() -> sqlite3.Connection:
         _conn = sqlite3.connect(DB_PATH, check_same_thread=False)
         _conn.row_factory = sqlite3.Row
         _conn.executescript(SCHEMA)
+        cols = {r[1] for r in _conn.execute("PRAGMA table_info(users)")}
+        if "sunsign" not in cols:
+            _conn.execute("ALTER TABLE users ADD COLUMN sunsign TEXT")
         _migrate_state_json()
     return _conn
 
@@ -150,6 +152,11 @@ def set_tg_message_id(message_id: int, tg_message_id: int) -> None:
     db().commit()
 
 
+def last_register(chat_id: int) -> str | None:
+    r = db().execute("SELECT register FROM messages WHERE chat_id=? ORDER BY id DESC LIMIT 1", (chat_id,)).fetchone()
+    return r["register"] if r else None
+
+
 def get_message(message_id: int) -> sqlite3.Row | None:
     return db().execute("SELECT * FROM messages WHERE id=?", (message_id,)).fetchone()
 
@@ -186,10 +193,8 @@ def recent_moods(chat_id: int, hours: int = 36) -> list[sqlite3.Row]:
 
 
 def tone_weights(chat_id: int) -> dict[str, float]:
-    """Persona seed + recency-weighted feedback. Newer taps count more; nothing is ever banned."""
-    u = get_user(chat_id)
-    persona = (u["persona"] if u and u["persona"] in PERSONAS else "josiyam")
-    w = dict(PERSONAS[persona]["seed"])
+    """All voices start equal; recency-weighted feedback moves them. Nothing is ever banned."""
+    w = dict(SEED)
     rows = db().execute(
         "SELECT f.verdict, m.register FROM feedback f JOIN messages m ON m.id=f.message_id "
         "WHERE f.chat_id=? ORDER BY f.tapped_at DESC LIMIT 30",
