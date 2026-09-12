@@ -189,7 +189,8 @@ async def demo(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     u = store.ensure_user(chat_id)
     if not u["name"]:
         store.set_user(chat_id, name="Sriram", sunsign=u["sunsign"] or "Leo", step="done")
-    subprocess.run([sys.executable, "demo/seed.py"], check=True, capture_output=True)
+    subprocess.run([sys.executable, "demo/seed.py"] + (["--fast"] if ctx.args and ctx.args[0] == "fast" else []),
+                   check=True, capture_output=True)
     await update.message.reply_text("Using the sample calendar: a founder's Friday in Bangalore.")
     await do_connect(update, ctx, "demo/demo.ics")
 

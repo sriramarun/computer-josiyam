@@ -2,6 +2,8 @@
 
   python demo/seed.py            # compressed: events 2 min apart starting in 2 min
   python demo/seed.py 3          # same, 3 min apart
+  python demo/seed.py --fast     # for recording: 1-minute meetings, 3 min apart, so
+                                 # pre AND post nudges all land inside ~8 minutes
   python demo/seed.py --day      # realistic full day (09:00–18:30 today) → demo/sample-day.ics
                                  # import that into Google Calendar so the phone shows a real-looking day
 
@@ -93,15 +95,17 @@ def main():
         print(f"wrote demo/sample-day.ics — {len(DAY)} events today + weekly planning")
         return
 
-    gap = int(next((a for a in sys.argv[1:] if a.isdigit()), 2))
+    fast = "--fast" in sys.argv
+    gap = 3 if fast else int(next((a for a in sys.argv[1:] if a.isdigit()), 2))
     lines = header(now)
     t = now + timedelta(minutes=2)
     for title, _, dur, desc in LIVE:
-        lines += vevent(now, title, t, dur, desc)
+        lines += vevent(now, title, t, 1 if fast else dur, desc)
         t += timedelta(minutes=gap)
     lines += weekly_planning(now)
     write("demo/demo.ics", lines)
-    print(f"wrote demo/demo.ics — first event at {(now + timedelta(minutes=2)):%H:%M}, {gap} min apart")
+    print(f"wrote demo/demo.ics — first event at {(now + timedelta(minutes=2)):%H:%M}, {gap} min apart"
+          + (" (fast: 1-min meetings)" if fast else ""))
 
 
 if __name__ == "__main__":
