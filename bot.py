@@ -16,7 +16,7 @@ from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
 from dotenv import load_dotenv
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram import BotCommand, InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import Application, CallbackQueryHandler, CommandHandler, ContextTypes, MessageHandler, filters
 
 import store
@@ -244,10 +244,10 @@ async def reset(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 async def help_cmd(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    lines = "\n".join(f"/{c} — {d}" for c, d in COMMANDS)
     await update.message.reply_text(
-        "/start — set up (once)\n/today — reading for the rest of today\n/stats — what I've learned about you\n"
-        "/journal — your notes from the last 7 days\n/status — connection and schedule\n/demo — use the sample calendar\n/reset — forget me\n\n"
-        "Type anything else and it goes in the journal."
+        f"{lines}\n\nType anything else and it goes in the journal.\n"
+        "Buttons: 👍/👎 on a nudge tune the voice; 😮‍💨/😐/🔥 after a meeting log your mood."
     )
 
 
@@ -433,9 +433,26 @@ async def daily_tick(ctx: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 # ----------------------------------------------------------------- main ----
+COMMANDS = [
+    ("start", "Set up once: name, timezone, sun sign, calendar"),
+    ("today", "Reading for the rest of today"),
+    ("journal", "Your notes from the last 7 days"),
+    ("stats", "What I've learned about you"),
+    ("status", "Connection and scheduled nudges"),
+    ("demo", "Use the sample calendar"),
+    ("help", "All commands"),
+    ("reset", "Forget me and start over"),
+]
+
+
+async def register_commands(app: Application) -> None:
+    """Populates Telegram's Menu button (the / next to the text box)."""
+    await app.bot.set_my_commands([BotCommand(c, d) for c, d in COMMANDS])
+
+
 def main() -> None:
     store.db()
-    app = Application.builder().token(os.environ["TELEGRAM_BOT_TOKEN"]).build()
+    app = Application.builder().token(os.environ["TELEGRAM_BOT_TOKEN"]).post_init(register_commands).build()
     for name, fn in [("start", start), ("connect", connect_cmd), ("today", today), ("stats", stats_cmd),
                      ("status", status), ("demo", demo), ("reset", reset), ("help", help_cmd), ("journal", journal_cmd),
                      ("disconnect", reset)]:
