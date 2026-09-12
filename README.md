@@ -49,15 +49,18 @@ Commands: `/start` · `/connect <url>` · `/today` · `/status` · `/disconnect`
 
 ## Demo mode
 
-Seed four events two minutes apart and shrink the lead times so the whole story plays out in ~10 minutes:
+Two dummy calendars, both a founder's Friday in Bangalore:
 
 ```bash
-python demo/seed.py
-# in .env:  PRE_LEAD_MINUTES=1  POST_LAG_MINUTES=0  POLL_SECONDS=15
-python bot.py
+python demo/seed.py          # compressed: 4 events, 2 min apart, starting in 2 min  → demo/demo.ics
+python demo/seed.py --day    # realistic: 7 events 09:00–18:30 today                 → demo/sample-day.ics
 ```
 
-Then `/connect demo/demo.ics` (a local path works too). Demo beats:
+**Live demo** — shrink the lead times in `.env` (`PRE_LEAD_MINUTES=1`, `POST_LAG_MINUTES=0`, `POLL_SECONDS=15`), run `python demo/seed.py`, start the bot, then `/connect demo/demo.ics`. Re-seed right before you hit record; events are relative to now.
+
+**For the phone screen** — import `demo/sample-day.ics` into Google Calendar (Settings → Import & export → Import). Your calendar app then shows a real-looking day, and you can `/connect` Google's actual secret ICS URL instead of a local file. Same bot, same code; the only difference is where the file lives.
+
+Demo beats:
 
 1. `/today` — day-ahead reading
 2. Nudge lands 1 min before "Investor call: Series A"
@@ -66,7 +69,7 @@ Then `/connect demo/demo.ics` (a local path works too). Demo beats:
 
 Four messages, ninety seconds, the user never typed a word after setup.
 
-The demo calendar is seeded; say so on stage. "This is my calendar, I connected it this morning" is the honest and stronger line.
+The calendar is seeded; say so on stage. "This is my calendar, I connected it this morning" is the honest and stronger line.
 
 ## Design notes
 

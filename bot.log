@@ -1,0 +1,35 @@
+2026-09-12 12:15:50,947 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-12 12:15:50,948 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-12 12:15:50,948 INFO josiyam: Computer Josiyam up. lead=1m lag=0m poll=15s
+2026-09-12 12:15:51,897 INFO apscheduler.scheduler: Added job "poll" to job store "default"
+2026-09-12 12:15:51,898 INFO apscheduler.scheduler: Added job "day-ahead" to job store "default"
+2026-09-12 12:15:51,898 INFO apscheduler.scheduler: Scheduler started
+2026-09-12 12:15:51,898 INFO telegram.ext.Application: Application started
+2026-09-12 12:15:55,948 INFO apscheduler.executors.default: Running job "poll (trigger: interval[0:00:15], next run at: 2026-09-12 06:46:10 UTC)" (scheduled at 2026-09-12 06:45:55.946545+00:00)
+2026-09-12 12:15:55,948 INFO apscheduler.executors.default: Job "poll (trigger: interval[0:00:15], next run at: 2026-09-12 06:46:10 UTC)" executed successfully
+2026-09-12 12:16:10,948 INFO apscheduler.executors.default: Running job "poll (trigger: interval[0:00:15], next run at: 2026-09-12 06:46:25 UTC)" (scheduled at 2026-09-12 06:46:10.946545+00:00)
+2026-09-12 12:16:10,949 INFO apscheduler.executors.default: Job "poll (trigger: interval[0:00:15], next run at: 2026-09-12 06:46:25 UTC)" executed successfully
+2026-09-12 12:16:25,948 INFO apscheduler.executors.default: Running job "poll (trigger: interval[0:00:15], next run at: 2026-09-12 06:46:40 UTC)" (scheduled at 2026-09-12 06:46:25.946545+00:00)
+2026-09-12 12:16:25,948 INFO apscheduler.executors.default: Job "poll (trigger: interval[0:00:15], next run at: 2026-09-12 06:46:40 UTC)" executed successfully
+2026-09-12 12:16:40,948 INFO apscheduler.executors.default: Running job "poll (trigger: interval[0:00:15], next run at: 2026-09-12 06:46:55 UTC)" (scheduled at 2026-09-12 06:46:40.946545+00:00)
+2026-09-12 12:16:40,948 INFO apscheduler.executors.default: Job "poll (trigger: interval[0:00:15], next run at: 2026-09-12 06:46:55 UTC)" executed successfully
+2026-09-12 12:16:55,948 INFO apscheduler.executors.default: Running job "poll (trigger: interval[0:00:15], next run at: 2026-09-12 06:47:10 UTC)" (scheduled at 2026-09-12 06:46:55.946545+00:00)
+2026-09-12 12:16:55,948 INFO apscheduler.executors.default: Job "poll (trigger: interval[0:00:15], next run at: 2026-09-12 06:47:10 UTC)" executed successfully
+2026-09-12 12:17:10,947 INFO apscheduler.executors.default: Running job "poll (trigger: interval[0:00:15], next run at: 2026-09-12 06:47:25 UTC)" (scheduled at 2026-09-12 06:47:10.946545+00:00)
+2026-09-12 12:17:10,947 INFO apscheduler.executors.default: Job "poll (trigger: interval[0:00:15], next run at: 2026-09-12 06:47:25 UTC)" executed successfully
+2026-09-12 12:17:25,948 INFO apscheduler.executors.default: Running job "poll (trigger: interval[0:00:15], next run at: 2026-09-12 06:47:40 UTC)" (scheduled at 2026-09-12 06:47:25.946545+00:00)
+2026-09-12 12:17:25,948 INFO apscheduler.executors.default: Job "poll (trigger: interval[0:00:15], next run at: 2026-09-12 06:47:40 UTC)" executed successfully
+2026-09-12 12:17:40,947 INFO apscheduler.executors.default: Running job "poll (trigger: interval[0:00:15], next run at: 2026-09-12 06:47:55 UTC)" (scheduled at 2026-09-12 06:47:40.946545+00:00)
+2026-09-12 12:17:40,948 INFO apscheduler.executors.default: Job "poll (trigger: interval[0:00:15], next run at: 2026-09-12 06:47:55 UTC)" executed successfully
+2026-09-12 12:17:55,948 INFO apscheduler.executors.default: Running job "poll (trigger: interval[0:00:15], next run at: 2026-09-12 06:48:10 UTC)" (scheduled at 2026-09-12 06:47:55.946545+00:00)
+2026-09-12 12:17:55,948 INFO apscheduler.executors.default: Job "poll (trigger: interval[0:00:15], next run at: 2026-09-12 06:48:10 UTC)" executed successfully
+2026-09-12 12:18:10,947 INFO apscheduler.executors.default: Running job "poll (trigger: interval[0:00:15], next run at: 2026-09-12 06:48:25 UTC)" (scheduled at 2026-09-12 06:48:10.946545+00:00)
+2026-09-12 12:18:10,948 INFO apscheduler.executors.default: Job "poll (trigger: interval[0:00:15], next run at: 2026-09-12 06:48:25 UTC)" executed successfully
+2026-09-12 12:18:25,948 INFO apscheduler.executors.default: Running job "poll (trigger: interval[0:00:15], next run at: 2026-09-12 06:48:40 UTC)" (scheduled at 2026-09-12 06:48:25.946545+00:00)
+2026-09-12 12:18:25,948 INFO apscheduler.executors.default: Job "poll (trigger: interval[0:00:15], next run at: 2026-09-12 06:48:40 UTC)" executed successfully
+2026-09-12 12:18:40,950 INFO apscheduler.executors.default: Running job "poll (trigger: interval[0:00:15], next run at: 2026-09-12 06:48:55 UTC)" (scheduled at 2026-09-12 06:48:40.946545+00:00)
+2026-09-12 12:18:40,951 INFO apscheduler.executors.default: Job "poll (trigger: interval[0:00:15], next run at: 2026-09-12 06:48:55 UTC)" executed successfully
+2026-09-12 12:18:55,948 INFO apscheduler.executors.default: Running job "poll (trigger: interval[0:00:15], next run at: 2026-09-12 06:49:10 UTC)" (scheduled at 2026-09-12 06:48:55.946545+00:00)
+2026-09-12 12:18:55,948 INFO apscheduler.executors.default: Job "poll (trigger: interval[0:00:15], next run at: 2026-09-12 06:49:10 UTC)" executed successfully
+2026-09-12 12:19:10,948 INFO apscheduler.executors.default: Running job "poll (trigger: interval[0:00:15], next run at: 2026-09-12 06:49:25 UTC)" (scheduled at 2026-09-12 06:49:10.946545+00:00)
+2026-09-12 12:19:10,948 INFO apscheduler.executors.default: Job "poll (trigger: interval[0:00:15], next run at: 2026-09-12 06:49:25 UTC)" executed successfully
