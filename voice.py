@@ -49,7 +49,7 @@ def _complete(system: str, user: str) -> str | None:
 
         client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=os.environ["OPENROUTER_API_KEY"])
         r = client.chat.completions.create(
-            model=os.getenv("ORACLE_MODEL", "google/gemini-2.5-flash-lite"),
+            model=os.getenv("JOSIYAM_MODEL", "google/gemini-2.5-flash-lite"),
             max_tokens=200,
             messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
             extra_headers={"HTTP-Referer": "https://github.com/sriramarun/computer-josiyam", "X-Title": "Computer Josiyam"},
@@ -59,7 +59,7 @@ def _complete(system: str, user: str) -> str | None:
         import anthropic
 
         msg = anthropic.Anthropic().messages.create(
-            model=os.getenv("ORACLE_MODEL", "claude-haiku-4-5-20251001"),
+            model=os.getenv("JOSIYAM_MODEL", "claude-haiku-4-5-20251001"),
             max_tokens=200,
             system=system,
             messages=[{"role": "user", "content": user}],

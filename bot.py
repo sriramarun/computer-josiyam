@@ -22,7 +22,7 @@ from voice import REGISTERS, compose, pick_register
 load_dotenv()
 logging.basicConfig(format="%(asctime)s %(levelname)s %(name)s: %(message)s", level=logging.INFO)
 logging.getLogger("httpx").setLevel(logging.WARNING)
-log = logging.getLogger("oracle")
+log = logging.getLogger("josiyam")
 
 TZ = ZoneInfo(os.getenv("TZ_NAME", "Asia/Kolkata"))
 PRE_LEAD = int(os.getenv("PRE_LEAD_MINUTES", "15"))
