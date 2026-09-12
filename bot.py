@@ -5,6 +5,7 @@ One-time setup: /start, then /connect <ics url>. After that, no input needed.
 """
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import os
@@ -115,13 +116,24 @@ async def disconnect(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 
 async def feedback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     q = update.callback_query
-    await q.answer()
     verdict, register = q.data.split(":", 1)
     delta = 0.5 if verdict == "up" else -0.4
     state["tone"][register] = max(0.1, state["tone"].get(register, 1.0) + delta)
     save_state(state)
-    await q.edit_message_reply_markup(reply_markup=None)
+    if verdict == "up":
+        toast, footer = "More like this.", "👍 noted — more of this voice"
+    else:
+        toast, footer = "Understood. Changing register.", "👎 noted — the next one will sound different"
+    await q.answer(toast)
+    try:
+        await q.edit_message_text(f"{q.message.text}\n\n{footer}")
+    except Exception as e:  # message too old / unchanged; the weights are already saved
+        log.warning("could not edit message: %s", e)
     log.info("feedback %s on %s -> %s", verdict, register, state["tone"])
+
+
+async def on_error(update: object, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    log.error("handler error: %s", ctx.error, exc_info=ctx.error)
 
 
 # ----------------------------------------------------------------- jobs ----
@@ -136,9 +148,16 @@ async def _send(ctx: ContextTypes.DEFAULT_TYPE, kind: str, events: list[dict]) -
     if not state["chat_id"]:
         return
     register = pick_register(state["tone"])
-    text = compose(kind, register, events, lead_minutes=PRE_LEAD)
-    await ctx.bot.send_message(chat_id=state["chat_id"], text=text, reply_markup=_keyboard(register))
-    log.info("sent %s [%s] for %s", kind, register, events[0]["title"] if events else "-")
+    text = await asyncio.to_thread(compose, kind, register, events, PRE_LEAD)
+    for attempt in range(4):  # wifi blips happen; a nudge 10s late beats a nudge never
+        try:
+            await ctx.bot.send_message(chat_id=state["chat_id"], text=text, reply_markup=_keyboard(register))
+            log.info("sent %s [%s] for %s", kind, register, events[0]["title"] if events else "-")
+            return
+        except Exception as e:
+            log.warning("send failed (attempt %d): %s", attempt + 1, e)
+            await asyncio.sleep(3 * (attempt + 1))
+    log.error("gave up sending %s for %s", kind, events[0]["title"] if events else "-")
 
 
 async def send_nudge(ctx: ContextTypes.DEFAULT_TYPE) -> None:
@@ -153,7 +172,7 @@ async def send_day_ahead(ctx: ContextTypes.DEFAULT_TYPE) -> None:
     end_of_day = now.replace(hour=23, minute=59, second=0)
     hours = max(1, int((end_of_day - now).total_seconds() // 3600) + 1)
     try:
-        evs = upcoming(state["ics_url"], hours=hours)
+        evs = await asyncio.to_thread(upcoming, state["ics_url"], hours)
     except Exception as e:
         log.warning("day-ahead fetch failed: %s", e)
         return
@@ -168,7 +187,7 @@ async def poll_feed(ctx: ContextTypes.DEFAULT_TYPE) -> None:
     if not state["ics_url"]:
         return
     try:
-        evs = upcoming(state["ics_url"], hours=24)
+        evs = await asyncio.to_thread(upcoming, state["ics_url"], 24)
     except Exception as e:
         log.warning("feed fetch failed: %s", e)
         return
@@ -184,7 +203,10 @@ async def poll_feed(ctx: ContextTypes.DEFAULT_TYPE) -> None:
             if key in sent or when < now:
                 continue
             sent.add(key)
-            ctx.job_queue.run_once(send_nudge, when=when, data={"ev": ev, "kind": kind}, name=f"nudge:{key}")
+            ctx.job_queue.run_once(
+                send_nudge, when=when, data={"ev": ev, "kind": kind}, name=f"nudge:{key}",
+                job_kwargs={"misfire_grace_time": 300},
+            )
             scheduled += 1
     state["sent"] = sorted(sent)
     save_state(state)
@@ -202,6 +224,7 @@ def main() -> None:
     app.add_handler(CommandHandler("status", status))
     app.add_handler(CommandHandler("disconnect", disconnect))
     app.add_handler(CallbackQueryHandler(feedback))
+    app.add_error_handler(on_error)
 
     app.job_queue.run_repeating(poll_feed, interval=POLL_SECONDS, first=5, name="poll")
     app.job_queue.run_daily(send_day_ahead, time=time(DAY_AHEAD_HOUR, DAY_AHEAD_MIN, tzinfo=TZ), name="day-ahead")
