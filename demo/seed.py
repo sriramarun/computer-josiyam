@@ -85,6 +85,9 @@ def write(path, lines):
 
 def main():
     now = datetime.now(TZ).replace(second=0, microsecond=0)
+    out = "demo/demo.ics"
+    if "--out" in sys.argv:
+        out = sys.argv[sys.argv.index("--out") + 1]
     if "--day" in sys.argv:
         lines = header(now)
         for title, hhmm, dur, desc in DAY:
@@ -96,15 +99,16 @@ def main():
         return
 
     fast = "--fast" in sys.argv
-    gap = 3 if fast else int(next((a for a in sys.argv[1:] if a.isdigit()), 2))
+    args = [a for i, a in enumerate(sys.argv[1:], 1) if sys.argv[i - 1] != "--out"]
+    gap = 3 if fast else int(next((a for a in args if a.isdigit()), 2))
     lines = header(now)
     t = now + timedelta(minutes=2)
     for title, _, dur, desc in LIVE:
         lines += vevent(now, title, t, 1 if fast else dur, desc)
         t += timedelta(minutes=gap)
     lines += weekly_planning(now)
-    write("demo/demo.ics", lines)
-    print(f"wrote demo/demo.ics — first event at {(now + timedelta(minutes=2)):%H:%M}, {gap} min apart"
+    write(out, lines)
+    print(f"wrote {out} — first event at {(now + timedelta(minutes=2)):%H:%M}, {gap} min apart"
           + (" (fast: 1-min meetings)" if fast else ""))
 
 

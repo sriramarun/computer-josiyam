@@ -189,10 +189,16 @@ async def demo(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     u = store.ensure_user(chat_id)
     if not u["name"]:
         store.set_user(chat_id, name="Sriram", sunsign=u["sunsign"] or "Leo", step="done")
-    subprocess.run([sys.executable, "demo/seed.py"] + (["--fast"] if ctx.args and ctx.args[0] == "fast" else []),
-                   check=True, capture_output=True)
+    path = _demo_path(chat_id, fast=bool(ctx.args and ctx.args[0] == "fast"))
     await update.message.reply_text("Using the sample calendar: a founder's Friday in Bangalore.")
-    await do_connect(update, ctx, "demo/demo.ics")
+    await do_connect(update, ctx, path)
+
+
+def _demo_path(chat_id: int, fast: bool) -> str:
+    """Each user gets their own demo file, so one person's re-seed never reschedules everyone."""
+    path = f"demo/demo-{chat_id}.ics"
+    subprocess.run([sys.executable, "demo/seed.py", "--out", path] + (["--fast"] if fast else []), check=True, capture_output=True)
+    return path
 
 
 # ------------------------------------------------------------- commands ----
@@ -463,9 +469,46 @@ async def _wait_for(check, timeout: float) -> bool:
     return False
 
 
+async def _edit_footer(ctx, chat_id: int, mid: int, footer: str) -> None:
+    m = store.get_message(mid)
+    if not m or not m["tg_message_id"]:
+        return
+    # rebuild the text the user sees: header + body (+ post invite), then the footer
+    try:
+        text = f"{_play_headers.get(mid, '')}\n\n{m['text']}".strip()
+        if m["kind"] == "post":
+            text += "\n\nHow did it go? Tap below — or type a line and it goes in your journal."
+        await ctx.bot.edit_message_text(chat_id=chat_id, message_id=m["tg_message_id"], text=f"{text}\n\n{footer}")
+    except Exception as e:
+        log.warning("simulated tap edit failed: %s", e)
+
+
+_play_headers: dict[int, str] = {}
+
+
+async def _sim_tap(ctx, chat_id: int, mid: int, verdict: str) -> None:
+    store.record_feedback(mid, chat_id, verdict)
+    footer = "👍 noted — more of this voice" if verdict == "up" else "👎 noted — the next one will sound different"
+    await _edit_footer(ctx, chat_id, mid, f"{footer}  (auto-tap)")
+
+
+async def _sim_mood_and_note(ctx, chat_id: int, mid: int, mood: str, note: str, u) -> None:
+    store.record_mood(chat_id, mood, source="tap", message_id=mid)
+    if mood == "great":
+        store.record_feedback(mid, chat_id, "up")
+    await _edit_footer(ctx, chat_id, mid, f"{MOOD_EMOJI[mood]} {mood} — noted.  (auto-tap)")
+    await asyncio.sleep(2)
+    _, about = store.record_journal(chat_id, note)
+    register = pick_register(store.tone_weights(chat_id), avoid=store.last_register(chat_id))
+    reply = await asyncio.to_thread(compose, "ack", register, [], PRE_LEAD, u["name"], {"sunsign": u["sunsign"], "note": note, "note_about": about})
+    store.record_message(chat_id, "ack", register, reply, {"title": about} if about else None)
+    await ctx.bot.send_message(chat_id=chat_id, text=f"📓 saved · {about}  (auto-note)\n“{note}”\n\n{reply}")
+
+
 async def play(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
-    """Scripted demo for screen recording: a full day compressed into ~3 minutes.
-    Every message is the real pipeline; only the clock is compressed. Pauses for your taps."""
+    """Scripted demo for screen recording: a full day in under two minutes.
+    Every message is the real pipeline; only the clock is compressed. Waits 4 s for a
+    real tap at each step, otherwise taps for you (labelled)."""
     chat_id = update.effective_chat.id
     if chat_id in _playing:
         await update.message.reply_text("Already playing.")
@@ -476,20 +519,31 @@ async def play(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     _playing.add(chat_id)
     try:
         await _play(update, ctx)
+    except Exception as e:
+        log.exception("play failed: %s", e)
+        await update.message.reply_text(f"Demo hit an error: {str(e)[:120]}")
     finally:
         _playing.discard(chat_id)
 
 
+async def _send_p(ctx, u, kind, events, density):
+    """_send, remembering the rendered header so a simulated tap can re-render the message."""
+    mid = await _send(ctx, u, kind, events, density=density)
+    if mid:
+        _play_headers[mid] = _header(kind, events)
+    return mid
+
+
 async def _play(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     chat_id = update.effective_chat.id
-    subprocess.run([sys.executable, "demo/seed.py", "--fast"], check=True, capture_output=True)
-    store.set_user(chat_id, ics_url="demo/demo.ics", step="done")
+    t0 = datetime.now()
+    path = _demo_path(chat_id, fast=True)
+    store.set_user(chat_id, ics_url=path, step="done")
     u = store.get_user(chat_id)
     tz = tz_of(u)
-    evs = await asyncio.to_thread(upcoming, "demo/demo.ics", 24, None, tz)
+    evs = await asyncio.to_thread(upcoming, path, 24, None, tz)
     evs = [e for e in evs if e["start"].date() == datetime.now(tz).date()]
-    # the poller must not double-send these while the script runs
-    for ev in evs:
+    for ev in evs:  # the poller must not double-send these while the script runs
         for kind in ("pre", "post"):
             store.mark_sent(chat_id, f'{ev["uid"]}:{kind}:{ev["start"].isoformat()}')
     standup, investor, priya = evs[0], evs[1], evs[2]
@@ -498,40 +552,41 @@ async def _play(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     def tapped(mid):
         return lambda: store.db().execute("SELECT 1 FROM feedback WHERE message_id=?", (mid,)).fetchone() is not None
 
-    def mood_or_note(mid, n_notes):
-        return lambda: (store.db().execute("SELECT 1 FROM mood WHERE message_id=?", (mid,)).fetchone() is not None
-                        and store.db().execute("SELECT COUNT(*) FROM journal WHERE chat_id=?", (chat_id,)).fetchone()[0] > n_notes)
+    def mooded(mid):
+        return lambda: store.db().execute("SELECT 1 FROM mood WHERE message_id=?", (mid,)).fetchone() is not None
 
-    def notes():
-        return store.db().execute("SELECT COUNT(*) FROM journal WHERE chat_id=?", (chat_id,)).fetchone()[0]
+    await update.message.reply_text(f"▶️ Calendar connected. Sample day, clock compressed: {density} meetings in two minutes.")
+    await asyncio.sleep(2)
+    await _send_p(ctx, u, "day", evs, density)                            # 08:30 reading
+    await asyncio.sleep(7)
 
-    await update.message.reply_text(f"▶️ Calendar connected. Sample day, clock compressed: {density} meetings in three minutes.")
+    mid = await _send_p(ctx, u, "pre", [standup], density)                # ⏰ standup
+    if not await _wait_for(tapped(mid), 4):
+        await _sim_tap(ctx, chat_id, mid, "up")
     await asyncio.sleep(3)
-    await _send(ctx, u, "day", evs, density=density)                      # 08:30 reading
-    await asyncio.sleep(18)
-
-    mid = await _send(ctx, u, "pre", [standup], density=density)          # ⏰ standup
-    await _wait_for(tapped(mid), 20)
-    await asyncio.sleep(6)
-    mid = await _send(ctx, u, "post", [standup], density=density)         # ✅ standup → mood + note
-    await _wait_for(mood_or_note(mid, notes()), 40)
+    mid = await _send_p(ctx, u, "post", [standup], density)               # ✅ standup
+    if not await _wait_for(mooded(mid), 4):
+        await _sim_mood_and_note(ctx, chat_id, mid, "fine", "Quick one. Nothing new, nothing broken.", u)
     await asyncio.sleep(4)
 
-    mid = await _send(ctx, u, "pre", [investor], density=density)         # ⏰ investor (hard)
-    await _wait_for(tapped(mid), 20)
-    await asyncio.sleep(6)
-    mid = await _send(ctx, u, "post", [investor], density=density)        # ✅ investor → mood + note
-    await _wait_for(mood_or_note(mid, notes()), 45)
+    mid = await _send_p(ctx, u, "pre", [investor], density)               # ⏰ investor (hard)
+    if not await _wait_for(tapped(mid), 4):
+        await _sim_tap(ctx, chat_id, mid, "down")
+    await asyncio.sleep(3)
+    mid = await _send_p(ctx, u, "post", [investor], density)              # ✅ investor
+    if not await _wait_for(mooded(mid), 4):
+        await _sim_mood_and_note(ctx, chat_id, mid, "great", "They pushed hard on burn. I held the line.", u)
     await asyncio.sleep(4)
 
-    mid = await _send(ctx, u, "pre", [priya], density=density)            # ⏰ 1:1 — echoes the journal
-    await _wait_for(tapped(mid), 15)
-    await asyncio.sleep(6)
+    mid = await _send_p(ctx, u, "pre", [priya], density)                  # ⏰ 1:1 — echoes the journal
+    if not await _wait_for(tapped(mid), 4):
+        await _sim_tap(ctx, chat_id, mid, "up")
+    await asyncio.sleep(4)
 
-    await send_eod(ctx, u, force=True, include_future=True)               # 🌙 day closed (clock is compressed)
-    await asyncio.sleep(12)
+    await send_eod(ctx, u, force=True, include_future=True)               # 🌙 day closed
+    await asyncio.sleep(6)
     await stats_cmd(update, ctx)                                          # 📊 what it learned
-    log.info("play finished for %s", chat_id)
+    log.info("play finished for %s in %.0fs", chat_id, (datetime.now() - t0).total_seconds())
 
 
 async def schedule_for_user(ctx: ContextTypes.DEFAULT_TYPE, user) -> int:

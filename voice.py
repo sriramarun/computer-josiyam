@@ -82,7 +82,7 @@ def _complete(system: str, user: str) -> str | None:
     if os.getenv("OPENROUTER_API_KEY"):
         from openai import OpenAI
 
-        client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=os.environ["OPENROUTER_API_KEY"])
+        client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=os.environ["OPENROUTER_API_KEY"], timeout=10, max_retries=1)
         primary = os.getenv("JOSIYAM_MODEL", "deepseek/deepseek-v4-flash")
         fallbacks = [m for m in os.getenv("JOSIYAM_FALLBACK_MODELS", "deepseek/deepseek-v3.2,google/gemma-4-31b-it:free").split(",") if m]
         r = client.chat.completions.create(

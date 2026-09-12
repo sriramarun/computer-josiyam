@@ -57,19 +57,19 @@ Target: 90–120 seconds, phone screen only, portrait. One take of ~9 minutes re
 
 ## The easy way: `/play`
 
-One command runs the whole day in about three minutes, pausing at each point for your real tap or note:
+One command runs the whole day in about 90 seconds. It waits 4 s at each step for your real tap; if you don't tap, it taps for you and labels it "(auto-tap)" / "(auto-note)" on screen — so a hands-off recording is still honest.
 
 1. Clear the chat history, `/reset`, start the screen recorder.
 2. `/start` → name → timezone → sun sign (30 s of onboarding on camera).
-3. Send `/play`. Then just react:
-   - day reading → wait
-   - ⏰ standup → tap 👍
-   - ✅ standup → tap 😐, type "quick one, nothing new"
-   - ⏰ investor call → tap 👎
-   - ✅ investor call → tap 🔥, type "they pushed on burn, I held the line"
-   - ⏰ 1:1 with Priya → read it; it echoes your note
-   - 🌙 day closed → arrives on its own
-   - 📊 stats → arrives on its own
-4. Stop recording. Total ≈ 3½ minutes, no editing required beyond trimming the ends.
+3. Send `/play`. Either sit back, or tap along:
+   - 📅 day reading
+   - ⏰ standup → 👍
+   - ✅ standup → 😐 + note
+   - ⏰ investor call (hard) → 👎
+   - ✅ investor call → 🔥 + note "They pushed hard on burn. I held the line."
+   - ⏰ 1:1 with Priya — echoes the note
+   - 🌙 day closed
+   - 📊 stats
+4. Stop recording. Total ≈ 2 minutes including onboarding. Trim the ends.
 
-If you don't tap, it moves on after ~20–45 s. Every message is the real pipeline; only the clock is compressed — and the first message on screen says so.
+Every message is the real pipeline; only the clock is compressed — the first message on screen says so. Each user gets their own demo calendar file, so several people can `/play` at once.
