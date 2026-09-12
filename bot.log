@@ -1,24 +1,18 @@
-2026-09-12 12:28:35,797 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
-2026-09-12 12:28:35,798 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
-2026-09-12 12:28:35,799 INFO josiyam: Computer Josiyam up. lead=1m lag=0m poll=15s
-2026-09-12 12:28:36,439 INFO apscheduler.scheduler: Added job "poll" to job store "default"
-2026-09-12 12:28:36,439 INFO apscheduler.scheduler: Added job "day-ahead" to job store "default"
-2026-09-12 12:28:36,439 INFO apscheduler.scheduler: Scheduler started
-2026-09-12 12:28:36,439 INFO telegram.ext.Application: Application started
-2026-09-12 12:28:40,799 INFO apscheduler.executors.default: Running job "poll (trigger: interval[0:00:15], next run at: 2026-09-12 06:58:55 UTC)" (scheduled at 2026-09-12 06:58:40.797327+00:00)
-2026-09-12 12:28:40,819 INFO apscheduler.scheduler: Added job "nudge:2db24866-9712-4eaf-9e17-5c33d8907349@computer-josiyam:pre:2026-09-12T12:30:00+05:30" to job store "default"
-2026-09-12 12:28:40,819 INFO apscheduler.scheduler: Added job "nudge:2db24866-9712-4eaf-9e17-5c33d8907349@computer-josiyam:post:2026-09-12T12:30:00+05:30" to job store "default"
-2026-09-12 12:28:40,819 INFO apscheduler.scheduler: Added job "nudge:c24627ba-7dcf-4f70-8c96-42e8a1992aee@computer-josiyam:pre:2026-09-12T12:32:00+05:30" to job store "default"
-2026-09-12 12:28:40,820 INFO apscheduler.scheduler: Added job "nudge:c24627ba-7dcf-4f70-8c96-42e8a1992aee@computer-josiyam:post:2026-09-12T12:32:00+05:30" to job store "default"
-2026-09-12 12:28:40,820 INFO apscheduler.scheduler: Added job "nudge:d70d38cf-55b6-42f2-ab66-ba57416efd5d@computer-josiyam:pre:2026-09-12T12:34:00+05:30" to job store "default"
-2026-09-12 12:28:40,820 INFO apscheduler.scheduler: Added job "nudge:d70d38cf-55b6-42f2-ab66-ba57416efd5d@computer-josiyam:post:2026-09-12T12:34:00+05:30" to job store "default"
-2026-09-12 12:28:40,820 INFO apscheduler.scheduler: Added job "nudge:19e56498-aa15-46be-806f-778f15367f9c@computer-josiyam:pre:2026-09-12T12:36:00+05:30" to job store "default"
-2026-09-12 12:28:40,820 INFO apscheduler.scheduler: Added job "nudge:19e56498-aa15-46be-806f-778f15367f9c@computer-josiyam:post:2026-09-12T12:36:00+05:30" to job store "default"
-2026-09-12 12:28:40,820 INFO josiyam: scheduled 8 nudge(s) from 4 event(s)
-2026-09-12 12:28:40,821 INFO apscheduler.executors.default: Job "poll (trigger: interval[0:00:15], next run at: 2026-09-12 06:58:55 UTC)" executed successfully
-2026-09-12 12:28:55,799 INFO apscheduler.executors.default: Running job "poll (trigger: interval[0:00:15], next run at: 2026-09-12 06:59:10 UTC)" (scheduled at 2026-09-12 06:58:55.797327+00:00)
-2026-09-12 12:28:55,803 INFO apscheduler.executors.default: Job "poll (trigger: interval[0:00:15], next run at: 2026-09-12 06:59:10 UTC)" executed successfully
-2026-09-12 12:29:00,000 INFO apscheduler.scheduler: Removed job ad22b7991e1646e7a77a178a665dd561
-2026-09-12 12:29:00,001 INFO apscheduler.executors.default: Running job "nudge:2db24866-9712-4eaf-9e17-5c33d8907349@computer-josiyam:pre:2026-09-12T12:30:00+05:30 (trigger: date[2026-09-12 12:29:00 IST], next run at: 2026-09-12 12:29:00 IST)" (scheduled at 2026-09-12 12:29:00+05:30)
-2026-09-12 12:29:00,629 INFO josiyam: sent pre [punchy] for Team standup
-2026-09-12 12:29:00,629 INFO apscheduler.executors.default: Job "nudge:2db24866-9712-4eaf-9e17-5c33d8907349@computer-josiyam:pre:2026-09-12T12:30:00+05:30 (trigger: date[2026-09-12 12:29:00 IST], next run at: 2026-09-12 12:29:00 IST)" executed successfully
+2026-09-12 12:42:01,250 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-12 12:42:01,251 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-12 12:42:01,251 INFO josiyam: Computer Josiyam up. lead=1m lag=0m poll=15s
+2026-09-12 12:42:01,904 INFO apscheduler.scheduler: Added job "poll" to job store "default"
+2026-09-12 12:42:01,905 INFO apscheduler.scheduler: Added job "day-ahead" to job store "default"
+2026-09-12 12:42:01,905 INFO apscheduler.scheduler: Scheduler started
+2026-09-12 12:42:01,905 INFO telegram.ext.Application: Application started
+2026-09-12 12:42:06,251 INFO apscheduler.executors.default: Running job "poll (trigger: interval[0:00:15], next run at: 2026-09-12 07:12:21 UTC)" (scheduled at 2026-09-12 07:12:06.249993+00:00)
+2026-09-12 12:42:06,266 INFO apscheduler.scheduler: Added job "nudge:3bf2e260-33b4-41bc-a137-56ee2f9d3f86@computer-josiyam:pre:2026-09-12T12:44:00+05:30" to job store "default"
+2026-09-12 12:42:06,266 INFO apscheduler.scheduler: Added job "nudge:3bf2e260-33b4-41bc-a137-56ee2f9d3f86@computer-josiyam:post:2026-09-12T12:44:00+05:30" to job store "default"
+2026-09-12 12:42:06,266 INFO apscheduler.scheduler: Added job "nudge:ff145739-2f45-4f30-b3f7-de63d33de326@computer-josiyam:pre:2026-09-12T12:46:00+05:30" to job store "default"
+2026-09-12 12:42:06,266 INFO apscheduler.scheduler: Added job "nudge:ff145739-2f45-4f30-b3f7-de63d33de326@computer-josiyam:post:2026-09-12T12:46:00+05:30" to job store "default"
+2026-09-12 12:42:06,266 INFO apscheduler.scheduler: Added job "nudge:76bb7b54-975e-4d11-b77c-d1eaf2f32652@computer-josiyam:pre:2026-09-12T12:48:00+05:30" to job store "default"
+2026-09-12 12:42:06,266 INFO apscheduler.scheduler: Added job "nudge:76bb7b54-975e-4d11-b77c-d1eaf2f32652@computer-josiyam:post:2026-09-12T12:48:00+05:30" to job store "default"
+2026-09-12 12:42:06,266 INFO apscheduler.scheduler: Added job "nudge:eb11cc14-2610-4628-8083-5bd6a4e64d24@computer-josiyam:pre:2026-09-12T12:50:00+05:30" to job store "default"
+2026-09-12 12:42:06,266 INFO apscheduler.scheduler: Added job "nudge:eb11cc14-2610-4628-8083-5bd6a4e64d24@computer-josiyam:post:2026-09-12T12:50:00+05:30" to job store "default"
+2026-09-12 12:42:06,267 INFO josiyam: scheduled 8 nudge(s) from 4 event(s)
+2026-09-12 12:42:06,267 INFO apscheduler.executors.default: Job "poll (trigger: interval[0:00:15], next run at: 2026-09-12 07:12:21 UTC)" executed successfully

@@ -48,13 +48,20 @@ def _complete(system: str, user: str) -> str | None:
         from openai import OpenAI
 
         client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=os.environ["OPENROUTER_API_KEY"])
+        primary = os.getenv("JOSIYAM_MODEL", "deepseek/deepseek-v4-flash")
+        fallbacks = [m for m in os.getenv("JOSIYAM_FALLBACK_MODELS", "deepseek/deepseek-v3.2,google/gemma-4-31b-it:free").split(",") if m]
         r = client.chat.completions.create(
-            model=os.getenv("JOSIYAM_MODEL", "google/gemini-2.5-flash-lite"),
-            max_tokens=200,
+            model=primary,
+            max_tokens=400,
             messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
             extra_headers={"HTTP-Referer": "https://github.com/sriramarun/computer-josiyam", "X-Title": "Computer Josiyam"},
+            extra_body={
+                "models": [primary] + fallbacks,  # OpenRouter tries these in order on error / rate limit
+                "reasoning": {"enabled": False},  # thinking models otherwise spend the budget on reasoning
+            },
         )
-        return r.choices[0].message.content.strip()
+        content = r.choices[0].message.content
+        return content.strip() if content else None
     if os.getenv("ANTHROPIC_API_KEY"):
         import anthropic
 
