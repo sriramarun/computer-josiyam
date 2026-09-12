@@ -75,9 +75,15 @@ def _complete(system: str, user: str) -> str | None:
     return None
 
 
-def compose(kind: str, register: str, events: list[dict], lead_minutes: int = 15) -> str:
-    """kind: pre|post|day. events: one event for pre/post, all of today's for day."""
+def compose(kind: str, register: str, events: list[dict], lead_minutes: int = 15,
+            name: str | None = None, context: dict | None = None) -> str:
+    """kind: pre|post|day. events: one event for pre/post, all of today's for day.
+
+    context (all optional): event_class, density (meetings today), moods (recent taps),
+    persona. These are the passive signals — nothing the user typed.
+    """
     register = register if register in REGISTERS else "warm"
+    context = context or {}
     ev = events[0] if events else {"title": "your meeting"}
     slots = {
         "title": ev.get("title", "your meeting"),
@@ -85,14 +91,29 @@ def compose(kind: str, register: str, events: list[dict], lead_minutes: int = 15
         "n": len(events),
         "first": ev.get("title", ""),
     }
-    agenda = "\n".join(f'- {e["title"]} at {e["start"]:%H:%M} ({e.get("description","")})' for e in events)
+    agenda = "\n".join(
+        f'- {e["title"]} at {e["start"]:%H:%M} [{e.get("klass", "neutral")}] {e.get("description", "")}'.rstrip()
+        for e in events
+    )
+    who = f"The user's name is {name}. Use it at most once." if name else "Address the user as 'you'."
+    signals = []
+    if context.get("event_class") == "hard":
+        signals.append("This meeting is emotionally loaded. Steady them; do not minimise it.")
+    elif context.get("event_class") == "nourishing":
+        signals.append("This is a nourishing, human meeting. Be light and glad for them.")
+    if (context.get("density") or 0) >= 5:
+        signals.append(f"They have {context['density']} meetings today — a dense day. Keep it short, spare their attention.")
+    if context.get("moods"):
+        signals.append("Their recent post-meeting moods (newest first): " + ", ".join(context["moods"]) + ". Acknowledge the pattern lightly if relevant.")
     system = (
         "You are Computer Josiyam, a Telegram bot that sends positive reinforcement around calendar events. "
         f"Tone register: {STYLE[register]}. "
-        "Rules: under 45 words. Never give meeting advice or agendas. Never mention being an AI. "
-        "Address the user as 'you'. At most one emoji. Plain text, no markdown."
+        "Rules: under 45 words (day reading: under 90). Never give meeting advice or agendas. Never mention being an AI. "
+        f"{who} At most one emoji. Plain text, no markdown."
     )
     user = KIND_BRIEF[kind].format(lead=lead_minutes) + "\n\nEvents:\n" + agenda
+    if signals:
+        user += "\n\nContext:\n" + "\n".join(f"- {x}" for x in signals)
     try:
         text = _complete(system, user)
     except Exception:

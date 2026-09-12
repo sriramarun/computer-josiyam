@@ -4,3 +4,5 @@ state.json
 demo/demo.ics
 __pycache__/
 *.pyc
+josiyam.db
+state.json.migrated

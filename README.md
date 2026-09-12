@@ -16,9 +16,10 @@ ICS URL (polled every 60s)
         T+dur+5m    post-meeting close-out
    → 08:30 daily    day-ahead reading
    → each fire: pick a tone register from learned weights
-        → LLM (OpenRouter, any cheap model) writes ≤45 words in that register
-        → send with 👍 / 👎 buttons
-        → tap adjusts the weights for the next message
+        → LLM (OpenRouter, any cheap model) writes ≤45 words in that register,
+          given the event's emotional class, the day's density, recent moods
+        → pre/day messages carry 👍 / 👎; post-meeting carries 😮‍💨 / 😐 / 🔥
+        → every tap is a row in SQLite; weights are derived, never stored
 ```
 
 No OAuth, no consent screens, no client secrets. The ICS secret address works for Google, Apple and Outlook calendars.
@@ -27,11 +28,12 @@ No OAuth, no consent screens, no client secrets. The ICS secret address works fo
 
 | File | Job |
 |---|---|
-| `bot.py` | Telegram handlers, scheduler, state |
-| `feed.py` | fetch + parse ICS, expand recurring events |
-| `voice.py` | LLM persona, tone registers, template fallback |
+| `bot.py` | onboarding, handlers, scheduler (multi-user, per-timezone) |
+| `store.py` | SQLite: users, messages, feedback, mood, sent keys |
+| `feed.py` | fetch + parse ICS, expand recurring events, classify each as hard / neutral / nourishing |
+| `voice.py` | LLM persona, tone registers, passive-signal prompt context, template fallback |
 | `demo/seed.py` | writes a demo calendar with events minutes apart |
-| `state.json` | chat_id, ics_url, sent keys, tone weights (auto-created) |
+| `josiyam.db` | the SQLite file (auto-created) |
 
 ## Run it
 
@@ -42,10 +44,9 @@ cp .env.example .env      # add TELEGRAM_BOT_TOKEN (from @BotFather) and OPENROU
 python bot.py
 ```
 
-In Telegram: `/start`, then `/connect <your secret ICS url>`.
-Google Calendar → Settings → your calendar → *Secret address in iCal format*.
+In Telegram send `/start`. Four taps: your name, timezone, voice (🌙 Josiyam / 🤝 Coach / 🔥 Hype), then paste your calendar's secret ICS link. The first reading arrives immediately.
 
-Commands: `/start` · `/connect <url>` · `/today` · `/status` · `/disconnect`
+Commands: `/start` · `/today` · `/stats` · `/status` · `/demo` · `/reset` · `/help`
 
 ## Demo mode
 
@@ -71,11 +72,27 @@ Four messages, ninety seconds, the user never typed a word after setup.
 
 The calendar is seeded; say so on stage. "This is my calendar, I connected it this morning" is the honest and stronger line.
 
+## Mood without asking
+
+Judges penalise daily input, so the bot never asks "how are you?". It reads mood from what it already has:
+
+| Signal | Source | Costs the user |
+|---|---|---|
+| Event class (hard / neutral / nourishing) | keywords in title + description | nothing |
+| Day density | count of meetings today; ≥5 flips to short messages | nothing |
+| Reaction latency | seconds from send to 👍/👎 | nothing |
+| Post-meeting mood | 😮‍💨 / 😐 / 🔥 on the close-out message | one tap, only on a message already sent |
+
+Recent moods feed the next morning's reading ("yesterday's investor call was rough…").
+
+`/stats` shows what has been learned: thumbs-up rate per voice, average reaction time, mood counts, current weights.
+
 ## Design notes
 
 - **Setup vs daily input.** Judges penalise daily input. One `/connect` is the only setup; after that the bot only ever pushes.
-- **Tone learning is weights, not bans.** 👎 lowers a register's weight by 0.4, 👍 raises it 0.5. A disliked register still appears occasionally so the bot can recover if your taste changes.
-- **Dedupe survives restarts.** Sent keys are persisted, so a crash mid-day never double-sends.
+- **Tone learning is weights, not bans.** Weights start from the chosen persona and are recomputed from the last 30 taps, newest counting most (👍 +0.5, 👎 −0.4, decay 0.92 per step). A disliked register still appears occasionally so the bot can recover if your taste changes.
+- **Dedupe survives restarts.** Sent keys live in SQLite, so a crash mid-day never double-sends.
+- **Onboarding is four taps.** Name, timezone, voice, calendar link. Pasting a bare URL works — no one types `/connect`. The first reading arrives the second the calendar connects.
 - **Template fallback.** If the LLM key is missing or the API errors, messages still go out from built-in text. The demo can't die on a network blip.
 
 ## Gotchas

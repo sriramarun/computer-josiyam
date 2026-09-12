@@ -1,18 +1,5 @@
-2026-09-12 12:42:01,250 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
-2026-09-12 12:42:01,251 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
-2026-09-12 12:42:01,251 INFO josiyam: Computer Josiyam up. lead=1m lag=0m poll=15s
-2026-09-12 12:42:01,904 INFO apscheduler.scheduler: Added job "poll" to job store "default"
-2026-09-12 12:42:01,905 INFO apscheduler.scheduler: Added job "day-ahead" to job store "default"
-2026-09-12 12:42:01,905 INFO apscheduler.scheduler: Scheduler started
-2026-09-12 12:42:01,905 INFO telegram.ext.Application: Application started
-2026-09-12 12:42:06,251 INFO apscheduler.executors.default: Running job "poll (trigger: interval[0:00:15], next run at: 2026-09-12 07:12:21 UTC)" (scheduled at 2026-09-12 07:12:06.249993+00:00)
-2026-09-12 12:42:06,266 INFO apscheduler.scheduler: Added job "nudge:3bf2e260-33b4-41bc-a137-56ee2f9d3f86@computer-josiyam:pre:2026-09-12T12:44:00+05:30" to job store "default"
-2026-09-12 12:42:06,266 INFO apscheduler.scheduler: Added job "nudge:3bf2e260-33b4-41bc-a137-56ee2f9d3f86@computer-josiyam:post:2026-09-12T12:44:00+05:30" to job store "default"
-2026-09-12 12:42:06,266 INFO apscheduler.scheduler: Added job "nudge:ff145739-2f45-4f30-b3f7-de63d33de326@computer-josiyam:pre:2026-09-12T12:46:00+05:30" to job store "default"
-2026-09-12 12:42:06,266 INFO apscheduler.scheduler: Added job "nudge:ff145739-2f45-4f30-b3f7-de63d33de326@computer-josiyam:post:2026-09-12T12:46:00+05:30" to job store "default"
-2026-09-12 12:42:06,266 INFO apscheduler.scheduler: Added job "nudge:76bb7b54-975e-4d11-b77c-d1eaf2f32652@computer-josiyam:pre:2026-09-12T12:48:00+05:30" to job store "default"
-2026-09-12 12:42:06,266 INFO apscheduler.scheduler: Added job "nudge:76bb7b54-975e-4d11-b77c-d1eaf2f32652@computer-josiyam:post:2026-09-12T12:48:00+05:30" to job store "default"
-2026-09-12 12:42:06,266 INFO apscheduler.scheduler: Added job "nudge:eb11cc14-2610-4628-8083-5bd6a4e64d24@computer-josiyam:pre:2026-09-12T12:50:00+05:30" to job store "default"
-2026-09-12 12:42:06,266 INFO apscheduler.scheduler: Added job "nudge:eb11cc14-2610-4628-8083-5bd6a4e64d24@computer-josiyam:post:2026-09-12T12:50:00+05:30" to job store "default"
-2026-09-12 12:42:06,267 INFO josiyam: scheduled 8 nudge(s) from 4 event(s)
-2026-09-12 12:42:06,267 INFO apscheduler.executors.default: Job "poll (trigger: interval[0:00:15], next run at: 2026-09-12 07:12:21 UTC)" executed successfully
+2026-09-12 13:52:25,093 INFO josiyam: Computer Josiyam up. lead=1m lag=0m poll=15s day-ahead=08:30
+2026-09-12 13:52:25,703 INFO telegram.ext.Application: Application started
+2026-09-12 13:52:30,116 INFO josiyam: scheduled 8 nudge(s) for 1219867729 from 4 event(s)
+2026-09-12 13:53:02,178 INFO httpx2: HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2026-09-12 13:53:03,207 INFO josiyam: sent pre [warm] to 1219867729 for Team standup

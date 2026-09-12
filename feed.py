@@ -28,26 +28,41 @@ def _fetch(source: str) -> bytes:
         return f.read()
 
 
-def _as_local(dt: datetime | date) -> datetime | None:
+def _as_local(dt: datetime | date, tz: ZoneInfo) -> datetime | None:
     if not isinstance(dt, datetime):
         return None  # all-day event
     if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=TZ)  # floating time: assume the user's zone
-    return dt.astimezone(TZ)
+        dt = dt.replace(tzinfo=tz)  # floating time: assume the user's zone
+    return dt.astimezone(tz)
 
 
-def upcoming(source: str, hours: int = 24, now: datetime | None = None) -> list[dict]:
+HARD = ("investor", "board", "review", "interview", "pitch", "deadline", "escalation", "negotiation", "performance", "appraisal", "demo", "exam")
+NOURISHING = ("1:1", "lunch", "coffee", "walk", "amma", "appa", "mom", "dad", "family", "friend", "birthday", "yoga", "gym", "dinner")
+
+
+def classify(title: str, description: str = "") -> str:
+    """Cheap, deterministic: how emotionally loaded is this meeting? Feeds the prompt."""
+    t = f"{title} {description}".lower()
+    if any(k in t for k in HARD):
+        return "hard"
+    if any(k in t for k in NOURISHING):
+        return "nourishing"
+    return "neutral"
+
+
+def upcoming(source: str, hours: int = 24, now: datetime | None = None, tz: ZoneInfo | None = None) -> list[dict]:
     """Return events starting in [now, now+hours), sorted by start."""
+    tz = tz or TZ
     cal = Calendar.from_ical(_fetch(source))
-    now = now or datetime.now(TZ)
+    now = now or datetime.now(tz)
     window_end = now + timedelta(hours=hours)
     out = []
     for e in recurring_ical_events.of(cal).between(now, window_end):
-        start = _as_local(e["DTSTART"].dt)
+        start = _as_local(e["DTSTART"].dt, tz)
         if start is None:
             continue
         if "DTEND" in e:
-            end = _as_local(e["DTEND"].dt)
+            end = _as_local(e["DTEND"].dt, tz)
         elif "DURATION" in e:
             end = start + e["DURATION"].dt
         else:
@@ -59,6 +74,7 @@ def upcoming(source: str, hours: int = 24, now: datetime | None = None) -> list[
                 "start": start,
                 "end": end,
                 "description": str(e.get("DESCRIPTION", "")),
+                "klass": classify(str(e.get("SUMMARY", "")), str(e.get("DESCRIPTION", ""))),
             }
         )
     out.sort(key=lambda ev: ev["start"])
@@ -68,4 +84,4 @@ def upcoming(source: str, hours: int = 24, now: datetime | None = None) -> list[
 if __name__ == "__main__":
     src = sys.argv[1] if len(sys.argv) > 1 else "demo/demo.ics"
     for ev in upcoming(src):
-        print(f'{ev["start"]:%a %H:%M} - {ev["end"]:%H:%M}  {ev["title"]}')
+        print(f'{ev["start"]:%a %H:%M} - {ev["end"]:%H:%M}  {ev["title"]:35s} [{ev["klass"]}]')
