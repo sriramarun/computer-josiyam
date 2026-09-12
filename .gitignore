@@ -1,0 +1,6 @@
+.venv/
+.env
+state.json
+demo/demo.ics
+__pycache__/
+*.pyc
